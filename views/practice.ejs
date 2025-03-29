@@ -1,0 +1,46 @@
+<%- include('partials/header', { user: user }) %>
+
+<h2>Practice: <%= text ? text.title : 'Text Not Found' %></h2>
+
+<% if (text) { %>
+    <div id="text-info">
+        <p>Start typing the text below. Errors will be highlighted.</p>
+    </div>
+
+    <%# Container for the current line being typed %>
+    <%# Pass text ID and progress index to the JavaScript via data attributes %>
+    <div id="current-line-container"
+         data-text-content="<%= text.content %>"
+         data-text-id="<%= text.id %>"
+         data-progress-index="<%= text.progress_index %>">
+        <div id="current-line-display">
+            <%# Line content will be populated by JavaScript %>
+        </div>
+    </div>
+    <%# Input area - maybe reduce rows if only showing one line %>
+    <textarea id="typing-input" rows="2" placeholder="Start typing here..."></textarea>
+
+    <div id="results">
+        <p>WPM: <span id="wpm">0</span></p>
+        <p>Accuracy: <span id="accuracy">100</span>%</p>
+        <p>Errors: <span id="errors">0</span></p>
+        <p>Time: <span id="timer">0</span>s</p>
+        <p>Completion: <span id="completion">0</span>%</p> <%# Added completion percentage display %>
+    </div>
+
+    <%# Add Bootstrap button group for controls %>
+    <div class="mt-3 d-flex justify-content-center gap-2">
+        <button id="save-button" class="btn btn-success">Save Progress</button>
+        <button id="reset-button" class="btn btn-warning">Reset</button>
+    </div>
+
+<% } else { %>
+    <p>Text not found or you do not have permission to practice it.</p>
+<% } %>
+
+<p><a href="/profile">Back to Profile</a></p>
+
+<%- include('partials/footer') %>
+
+<%# Include client-side JS for practice logic %>
+<script src="/js/practice.js"></script>

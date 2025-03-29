@@ -1,0 +1,199 @@
+/* Modern Variables */
+:root {
+    /* Main Colors */
+    --primary-color: #bb86fc;
+    --primary-hover: #d0aaff;
+    --background-dark: #1a1a1a;
+    --background-darker: #121212;
+    --surface-dark: #2c2c2c;
+    --text-primary: #e0e0e0;
+    --text-secondary: #aaa;
+
+    /* Accent Colors */
+    --success-color: #81c784;
+    --error-color: #e57373;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
+
+    /* Transitions */
+    --transition-fast: 0.2s ease;
+    --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Modern Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--background-dark);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* Enhanced Main Container */
+main {
+    background-color: var(--surface-dark);
+    padding: 2rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(12px);
+    transition: transform var(--transition-smooth);
+}
+
+main:hover {
+    transform: translateY(-2px);
+}
+
+/* Modern Navigation */
+nav a {
+    color: var(--primary-color);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all var(--transition-fast);
+}
+
+nav a:hover {
+    color: var(--primary-hover);
+    background-color: rgba(187, 134, 252, 0.1);
+}
+
+/* Enhanced Form Elements */
+form input[type="text"],
+form input[type="password"],
+form input[type="file"],
+form textarea {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    transition: all var(--transition-fast);
+}
+
+form input:focus,
+form textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.2);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Modern Buttons */
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--background-darker);
+    border: none;
+    border-radius: 8px;
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all var(--transition-fast);
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Enhanced Typing Practice Area */
+#current-line-display {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.4rem;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: inset var(--shadow-sm);
+    transition: all var(--transition-smooth);
+    /* Ensure spaces between inline-block spans are preserved */
+    white-space: pre-wrap;
+    word-spacing: normal; /* Reset word-spacing if affected */
+}
+
+#typing-input {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.4rem;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all var(--transition-fast);
+    width: 100%; /* Make input full width */
+}
+
+/* Modern Character Highlighting */
+.correct {
+    color: var(--success-color);
+    text-shadow: 0 0 8px rgba(129, 199, 132, 0.3);
+}
+
+.incorrect {
+    color: var(--error-color);
+    text-shadow: 0 0 8px rgba(229, 115, 115, 0.3);
+}
+
+/* Enhanced Animations */
+@keyframes pulse-success {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0.4); }
+    50% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(129, 199, 132, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0); }
+}
+
+.completed {
+    animation: pulse-success 2s infinite;
+    background-color: rgba(129, 199, 132, 0.1);
+    border: 2px solid var(--success-color);
+    padding: 1rem;
+    border-radius: 12px;
+}
+
+/* Character Typing Animations */
+@keyframes char-correct-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); color: var(--success-color); } /* Pop effect */
+    100% { transform: scale(1); }
+}
+
+@keyframes char-incorrect-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); color: var(--error-color); } /* Shake effect */
+    75% { transform: translateX(3px); color: var(--error-color); }
+}
+
+/* Apply animations to the temporary effect classes */
+#current-line-display span {
+    display: inline-block; /* Needed for transform */
+    transition: color 0.1s ease-out; /* Smooth color transition back */
+    /* Add a small margin to visually separate inline-block spans */
+    margin-right: 1px;
+}
+
+/* Ensure spaces occupy some width when inline-block */
+#current-line-display span.space-char {
+    /* Ensure it still takes up space */
+    min-width: 0.25em; /* Adjust as needed based on font size */
+    /* Remove any styles that make it look like an underscore */
+    border-bottom: none;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+
+.effect-correct {
+    animation: char-correct-pop 0.3s ease-out;
+}
+
+.effect-incorrect {
+    animation: char-incorrect-shake 0.3s ease-in-out;
+}

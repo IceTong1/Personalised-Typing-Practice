@@ -1,0 +1,31 @@
+<%- include('partials/header', { user: user }) %>
+
+<h2 class="mb-4">Edit Text</h2>
+
+<% if (typeof error !== 'undefined' && error) { %>
+     <div class="alert alert-danger" role="alert">
+        <%= error %>
+    </div>
+<% } %>
+
+<% if (text) { %>
+    <form action="/edit_text/<%= text.id %>" method="POST">
+        <div class="mb-3">
+            <label for="title" class="form-label">Title:</label>
+            <input type="text" id="title" name="title" class="form-control" required value="<%= text.title %>">
+        </div>
+        <div class="mb-3">
+            <label for="content" class="form-label">Text Content:</label>
+            <textarea id="content" name="content" class="form-control" required rows="10"><%= text.content %></textarea> <%# Increased rows %>
+        </div>
+        <button type="submit" class="btn btn-primary">Update Text</button>
+    </form>
+<% } else { %>
+    <div class="alert alert-warning" role="alert">
+        Text not found or you do not have permission to edit it.
+    </div>
+<% } %>
+
+<p class="mt-4"><a href="/profile" class="btn btn-secondary btn-sm">Back to Profile</a></p>
+
+<%- include('partials/footer') %>

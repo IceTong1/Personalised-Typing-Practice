@@ -1,0 +1,30 @@
+<%- include('partials/header', { user: user }) %>
+
+<h2 class="mb-4">Add New Text</h2>
+
+<% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-danger" role="alert">
+        <%= error %>
+    </div>
+<% } %>
+
+<%# Add enctype for file uploads %>
+<form action="/add_text" method="POST" enctype="multipart/form-data">
+    <div class="mb-3">
+        <label for="title" class="form-label">Title:</label>
+        <input type="text" id="title" name="title" class="form-control" required value="<%= typeof title !== 'undefined' ? title : '' %>">
+    </div>
+    <div class="mb-3">
+        <label for="content" class="form-label">Text Content (or leave blank if uploading PDF):</label>
+        <textarea id="content" name="content" class="form-control" rows="6"><%= typeof content !== 'undefined' ? content : '' %></textarea> <%# Added rows attribute %>
+    </div>
+    <div class="mb-3">
+        <label for="pdfFile" class="form-label">Or Upload PDF:</label>
+        <input type="file" id="pdfFile" name="pdfFile" class="form-control" accept=".pdf"> <%# Add form-control class %>
+    </div>
+    <button type="submit" class="btn btn-primary">Add Text</button> <%# Add btn classes %>
+</form>
+
+<p class="mt-4"><a href="/profile" class="btn btn-secondary btn-sm">Back to Profile</a></p> <%# Style back link as button %>
+
+<%- include('partials/footer') %>
