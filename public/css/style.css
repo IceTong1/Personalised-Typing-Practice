@@ -478,6 +478,7 @@ form textarea:focus {
     transition: all var(--transition-fast);
     width: 100%; /* Make input full width */
     box-sizing: border-box; /* Include padding in width */
+    color: #fff; /* Make typed text white */
 }
 
 /* Practice Page Specific Styles */
