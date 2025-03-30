@@ -319,14 +319,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const lastCharSpan = currentCharSpans[inputLength - 1];
             applyEffect(lastCharSpan, lastCharCorrect ? 'effect-correct' : 'effect-incorrect');
 
-            // Play sound based on correctness
-            if (lastCharCorrect) {
+            // Play sound based on correctness, BUT NOT if it's the correct final char
+            const isLineComplete = (inputLength === currentLineText.length && lineCorrect); // Check completion status NOW
+
+            if (lastCharCorrect && !isLineComplete) { // Only play correct sound if NOT the final correct char
                 correctSound.currentTime = 0; // Rewind to start
                 correctSound.play().catch(e => console.error("Error playing correct sound:", e));
-            } else {
+            } else if (!lastCharCorrect) { // Always play incorrect sound on error
                 incorrectSound.currentTime = 0; // Rewind to start
                 incorrectSound.play().catch(e => console.error("Error playing incorrect sound:", e));
             }
+            // The lineCompleteSound will be played later in the 'Advance to Next Line' block if isLineComplete is true
         }
 
         // --- Update Overall Progress Index (Relative to Display Structure) ---
