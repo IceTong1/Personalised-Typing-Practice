@@ -3,9 +3,9 @@
     /* Main Colors */
     --primary-color: #bb86fc;
     --primary-hover: #d0aaff;
-    --background-dark: #1a1a1a;
+    --background-dark: #1a1a1a; /* Base body background (if needed) */
     --background-darker: #121212;
-    --surface-dark: #2c2c2c;
+    --surface-dark: #2c2c2c; /* Used for navbar, main container, footer */
     --text-primary: #e0e0e0;
     --text-secondary: #aaa;
 
@@ -22,41 +22,125 @@
     --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html {
+    height: 100%; /* Needed for sticky footer */
+}
+
 body {
     font-family: 'Inter', sans-serif;
     line-height: 1.6;
+    background-color: var(--background-dark); /* Set base background */
+    color: var(--text-primary); /* Set base text color */
+    margin: 0; /* Ensure no default body margin */
+    min-height: 100%; /* Needed for sticky footer */
+    display: flex; /* Needed for sticky footer */
+    flex-direction: column; /* Needed for sticky footer */
+}
+
+/* Basic Layout Container */
+.container {
+    width: 100%;
+    max-width: 1140px; /* Example max-width, similar to Bootstrap's lg breakpoint */
+    padding-right: 15px; /* Standard container padding */
+    padding-left: 15px;
+    margin-right: auto; /* Center the container */
+    margin-left: auto;
+    box-sizing: border-box; /* Include padding in width calculation */
+}
+
+/* Replicating Bootstrap Navbar Styles */
+nav.navbar { /* Target the nav element with the .navbar class */
+    background-color: var(--surface-dark); /* Approximate bg-body-tertiary in dark mode */
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem; /* Replicate mb-4 */
+    /* Need flexbox for layout */
+    display: flex;
+    flex-wrap: wrap; /* Allow items to wrap on smaller screens eventually */
+    align-items: center;
+    /* justify-content: space-between; Let container handle this */
+    flex-shrink: 0; /* Prevent navbar from shrinking */
+}
+
+/* Style the container specifically within the navbar */
+nav.navbar .container {
+    display: flex;
+    flex-wrap: inherit;
+    align-items: center;
+    justify-content: space-between; /* Pushes brand left, nav items right */
+    width: 100%; /* Ensure container takes full width within navbar padding */
+    /* max-width, padding, margin handled by general .container rule */
+}
+
+
+.navbar-brand {
+    padding-top: 0.3125rem;
+    padding-bottom: 0.3125rem;
+    margin-right: 1rem; /* Space between brand and nav items */
+    font-size: 1.25rem;
+    color: var(--text-primary); /* Use primary text color */
+    text-decoration: none;
+    white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Styling Navigation Links */
+.navbar-nav {
+    display: flex;
+    flex-direction: row; /* Align items horizontally by default */
+    padding-left: 0; /* Remove default list padding */
+    margin-bottom: 0; /* Remove default list margin */
+    list-style: none; /* Remove bullet points */
+    margin-left: auto; /* Push nav items to the right */
+}
+
+.nav-item {
+    /* Usually doesn't need specific styles unless adding margins between items */
+}
+
+.nav-link {
+    display: block; /* Make the link fill the list item */
+    padding: 0.5rem 1rem; /* Padding around the link text */
+    color: var(--text-secondary); /* Use secondary text color for less emphasis */
+    text-decoration: none;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+    border-radius: 6px; /* Match old nav a style */
+}
+
+.nav-link:hover,
+.nav-link:focus { /* Add focus state for accessibility */
+    color: var(--primary-color); /* Use primary color on hover/focus */
+    background-color: rgba(187, 134, 252, 0.1); /* Match old nav a hover */
 }
 
 /* Enhanced Main Container */
-main {
+/* Note: This 'main' element also has the .container class in header.ejs */
+main.container { /* Target main specifically if it has .container */
     background-color: var(--surface-dark);
-    padding: 2rem;
+    /* padding: 2rem; /* This overrides .container padding - remove if using container padding */
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: var(--shadow-md);
-    backdrop-filter: blur(12px);
+    /* backdrop-filter: blur(12px); /* Note: backdrop-filter has limited support and performance impact */
     transition: transform var(--transition-smooth);
+    /* Add margin previously provided by Bootstrap's .mt-4 */
+    margin-top: 1.5rem; /* Replicates mt-4 */
+    margin-bottom: 1.5rem; /* Add some bottom margin too */
+    padding-top: 2rem; /* Add padding back since we removed the direct main padding */
+    padding-bottom: 2rem;
+    flex-grow: 1; /* Needed for sticky footer */
 }
 
-main:hover {
+main.container:hover {
     transform: translateY(-2px);
 }
 
-/* Modern Navigation */
-nav a {
-    color: var(--primary-color);
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    transition: all var(--transition-fast);
-}
-
-nav a:hover {
-    color: var(--primary-hover);
-    background-color: rgba(187, 134, 252, 0.1);
-}
-
 /* Enhanced Form Elements */
+form label { /* Add basic label styling */
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
 form input[type="text"],
 form input[type="password"],
 form input[type="file"],
@@ -67,6 +151,10 @@ form textarea {
     border-radius: 8px;
     padding: 0.8rem 1rem;
     transition: all var(--transition-fast);
+    /* Add basic width */
+    width: 100%;
+    margin-bottom: 1rem; /* Add some spacing */
+    box-sizing: border-box; /* Include padding and border in element's total width */
 }
 
 form input:focus,
@@ -88,6 +176,10 @@ form textarea:focus {
     letter-spacing: 0.5px;
     transition: all var(--transition-fast);
     cursor: pointer;
+    display: inline-block; /* Ensure it behaves like a block for margin/padding */
+    text-align: center;
+    text-decoration: none; /* Remove underline if applied to <a> tags */
+    margin-top: 0.5rem; /* Add some space above buttons */
 }
 
 .btn-primary:hover {
@@ -110,6 +202,7 @@ form textarea:focus {
     /* Ensure spaces between inline-block spans are preserved */
     white-space: pre-wrap;
     word-spacing: normal; /* Reset word-spacing if affected */
+    line-height: 1.8; /* Adjust line height for better readability */
 }
 
 #typing-input {
@@ -121,6 +214,7 @@ form textarea:focus {
     padding: 1.5rem;
     transition: all var(--transition-fast);
     width: 100%; /* Make input full width */
+    box-sizing: border-box; /* Include padding in width */
 }
 
 /* Modern Character Highlighting */
@@ -187,4 +281,53 @@ form textarea:focus {
 
 .effect-incorrect {
     animation: char-incorrect-shake 0.3s ease-in-out;
+}
+
+/* Responsive Navbar Styles (Replicating navbar-expand-lg) */
+@media (max-width: 991.98px) { /* Bootstrap lg breakpoint - 1px */
+    nav.navbar .container {
+        /* Allow brand and nav to stack */
+        flex-direction: column;
+        align-items: flex-start; /* Align items to the start when stacked */
+    }
+
+    .navbar-nav {
+        flex-direction: column; /* Stack nav items vertically */
+        width: 100%; /* Take full width */
+        margin-left: 0; /* Reset margin used for right alignment */
+        margin-top: 0.5rem; /* Add space below brand */
+    }
+
+    .nav-item {
+        /* Optional: Add spacing between stacked items */
+        margin-bottom: 0.25rem;
+    }
+
+    .nav-link {
+        padding: 0.5rem 0; /* Adjust padding for vertical layout */
+        /* Optional: Add border or background for separation */
+        width: 100%; /* Ensure link takes full width */
+        border-radius: 0; /* Optional: Remove radius in stacked view */
+    }
+
+    /* Note: This doesn't include the toggle button functionality,
+       which requires JavaScript. Links will always be visible. */
+}
+
+/* Footer Styles */
+footer {
+    background-color: var(--surface-dark); /* Replicate bg-body-tertiary */
+    padding-top: 1rem; /* Replicate py-3 */
+    padding-bottom: 1rem;
+    margin-top: auto; /* Attempt to replicate mt-auto for sticky footer */
+    text-align: center; /* Replicate text-center */
+    color: var(--text-secondary); /* Replicate text-body-secondary */
+    flex-shrink: 0; /* Prevent footer from shrinking */
+}
+
+/* Footer container specific styles (if needed, but text-align on footer might suffice) */
+footer .container {
+   /* Styles specific to the container within the footer, if any */
+   /* Centering is handled by margin: auto on .container */
+   /* Text alignment handled by text-align on footer */
 }
