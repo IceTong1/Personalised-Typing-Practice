@@ -10,17 +10,17 @@
 
 <%# Add enctype for file uploads %>
 <form action="/add_text" method="POST" enctype="multipart/form-data">
-    <div class="mb-3">
-        <label for="title" class="form-label">Title:</label>
-        <input type="text" id="title" name="title" class="form-control" required value="<%= typeof title !== 'undefined' ? title : '' %>">
+    <div class="form-group"> <%# Replaced mb-3 %>
+        <label for="title">Title:</label> <%# Removed form-label %>
+        <input type="text" id="title" name="title" required value="<%= typeof title !== 'undefined' ? title : '' %>"> <%# Removed form-control %>
     </div>
-    <div class="mb-3">
-        <label for="content" class="form-label">Text Content (or leave blank if uploading PDF):</label>
-        <textarea id="content" name="content" class="form-control" rows="6"><%= typeof content !== 'undefined' ? content : '' %></textarea> <%# Added rows attribute %>
+    <div class="form-group"> <%# Replaced mb-3 %>
+        <label for="content">Text Content (or leave blank if uploading PDF):</label> <%# Removed form-label %>
+        <textarea id="content" name="content" rows="6"><%= typeof content !== 'undefined' ? content : '' %></textarea> <%# Removed form-control %>
     </div>
-    <div class="mb-3">
-        <label for="pdfFile" class="form-label">Or Upload PDF:</label>
-        <input type="file" id="pdfFile" name="pdfFile" class="form-control" accept=".pdf"> <%# Add form-control class %>
+    <div class="form-group"> <%# Replaced mb-3 %>
+        <label for="pdfFile">Or Upload PDF:</label> <%# Removed form-label %>
+        <input type="file" id="pdfFile" name="pdfFile" accept=".pdf"> <%# Removed form-control %>
     </div>
     <button type="submit" class="btn btn-primary">Add Text</button> <%# Add btn classes %>
 </form>

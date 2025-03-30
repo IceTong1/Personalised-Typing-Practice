@@ -12,6 +12,29 @@
     /* Accent Colors */
     --success-color: #81c784;
     --error-color: #e57373;
+    --warning-color: #ffa726; /* Added warning color */
+    --info-color: #0dcaf0;
+    --danger-color: #dc3545;
+    --secondary-color-bg: var(--surface-dark);
+    --secondary-color-border: rgba(255, 255, 255, 0.2);
+    --secondary-hover-bg: rgba(255, 255, 255, 0.1);
+    --secondary-hover-border: rgba(255, 255, 255, 0.3);
+    --warning-hover: #fb8c00;
+    --success-hover: #66bb6a;
+    --info-hover: #0b9ed7;
+    --danger-hover: #b02a37;
+
+    /* Alert Colors */
+    --danger-color-text: #f8d7da;
+    --danger-color-bg: #dc354533;
+    --danger-color-border: #dc354588;
+    --info-color-text: #cff4fc;
+    --info-color-bg: #0dcaf033;
+    --info-color-border: #0dcaf088;
+    --warning-color-text: #664d03; /* Dark text for light background */
+    --warning-color-bg: #fff3cd;
+    --warning-color-border: #ffecb5;
+
 
     /* Shadows */
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -37,6 +60,76 @@ body {
     flex-direction: column; /* Needed for sticky footer */
 }
 
+/* --- General Typography & Element Styles --- */
+
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600; /* Slightly bolder */
+    line-height: 1.3;
+    color: var(--text-primary);
+}
+
+h1 { font-size: 2.2rem; }
+h2 { font-size: 1.8rem; }
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.2rem; }
+/* h5, h6 can inherit base size or be slightly larger if needed */
+
+p {
+    margin-bottom: 1rem;
+}
+
+/* General link styling (excluding navbar links, which have specific rules) */
+a:not(.nav-link):not(.navbar-brand):not(.btn) { /* Updated exclusion */
+    color: var(--primary-color);
+    text-decoration: none; /* Remove underline by default */
+    transition: color var(--transition-fast);
+}
+
+a:not(.nav-link):not(.navbar-brand):not(.btn):hover { /* Updated exclusion */
+    color: var(--primary-hover);
+    text-decoration: underline; /* Add underline on hover for clarity */
+}
+
+ul, ol {
+    padding-left: 2rem; /* Indent lists */
+    margin-bottom: 1rem;
+}
+
+li {
+    margin-bottom: 0.5rem; /* Space out list items */
+}
+
+hr { /* Style horizontal rules */
+    border: 0;
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.15);
+    margin: 2rem 0;
+}
+
+/* --- End General Styles --- */
+
+/* --- Utility Classes --- */
+.mt-3 { margin-top: 1rem !important; } /* Approximate Bootstrap value */
+.mt-4 { margin-top: 1.5rem !important; } /* Approximate Bootstrap value */
+.mb-3 { margin-bottom: 1rem !important; }
+.mb-4 { margin-bottom: 1.5rem !important; } /* Approximate Bootstrap value */
+.ms-2 { margin-left: 0.5rem !important; } /* Approximate Bootstrap value */
+
+.text-muted, .text-body-secondary { /* Combine similar concepts */
+    color: var(--text-secondary) !important;
+}
+.text-center { text-align: center !important; }
+
+.flex-between-center {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+/* --- End Utility Classes --- */
+
+
 /* Basic Layout Container */
 .container {
     width: 100%;
@@ -51,9 +144,10 @@ body {
 /* Replicating Bootstrap Navbar Styles */
 nav.navbar { /* Target the nav element with the .navbar class */
     background-color: var(--surface-dark); /* Approximate bg-body-tertiary in dark mode */
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+    padding-top: 0.75rem; /* Slightly more vertical padding */
+    padding-bottom: 0.75rem;
     margin-bottom: 1.5rem; /* Replicate mb-4 */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
     /* Need flexbox for layout */
     display: flex;
     flex-wrap: wrap; /* Allow items to wrap on smaller screens eventually */
@@ -118,9 +212,8 @@ main.container { /* Target main specifically if it has .container */
     background-color: var(--surface-dark);
     /* padding: 2rem; /* This overrides .container padding - remove if using container padding */
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15); /* Slightly more visible border */
     box-shadow: var(--shadow-md);
-    /* backdrop-filter: blur(12px); /* Note: backdrop-filter has limited support and performance impact */
     transition: transform var(--transition-smooth);
     /* Add margin previously provided by Bootstrap's .mt-4 */
     margin-top: 1.5rem; /* Replicates mt-4 */
@@ -134,11 +227,15 @@ main.container:hover {
     transform: translateY(-2px);
 }
 
-/* Enhanced Form Elements */
+/* --- Form Styles --- */
 form label { /* Add basic label styling */
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
+}
+
+.form-group {
+    margin-bottom: 1rem; /* Spacing between form elements */
 }
 
 form input[type="text"],
@@ -153,7 +250,7 @@ form textarea {
     transition: all var(--transition-fast);
     /* Add basic width */
     width: 100%;
-    margin-bottom: 1rem; /* Add some spacing */
+    /* margin-bottom: 1rem; /* Replaced by .form-group */
     box-sizing: border-box; /* Include padding and border in element's total width */
 }
 
@@ -163,30 +260,196 @@ form textarea:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.2);
     background-color: rgba(255, 255, 255, 0.08);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast); /* Smooth focus transition */
+}
+/* --- End Form Styles --- */
+
+/* --- Button Styles --- */
+
+/* Base Button Styles */
+.btn {
+    display: inline-block;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--text-primary); /* Default text color */
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent; /* Default background */
+    border: 1px solid transparent; /* Default border */
+    padding: 0.6rem 1.2rem; /* Slightly smaller padding than btn-primary */
+    font-size: 1rem;
+    border-radius: 8px;
+    transition: all var(--transition-fast);
+    margin-top: 0.5rem; /* Consistent top margin */
 }
 
-/* Modern Buttons */
+.btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px); /* Consistent hover lift */
+    box-shadow: var(--shadow-sm);
+}
+
+/* Button Sizes */
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 6px; /* Smaller radius for smaller button */
+    margin-top: 0; /* Remove default top margin for inline buttons */
+}
+
+/* Specific Button Variants */
 .btn-primary {
+    /* Inherits display, font-weight, line-height, text-align, etc. from .btn */
     background-color: var(--primary-color);
     color: var(--background-darker);
-    border: none;
-    border-radius: 8px;
+    border: none; /* Override base border if needed */
+    /* Keep specific padding, letter-spacing if desired */
     padding: 0.8rem 1.5rem;
-    font-weight: 600;
     letter-spacing: 0.5px;
-    transition: all var(--transition-fast);
-    cursor: pointer;
-    display: inline-block; /* Ensure it behaves like a block for margin/padding */
-    text-align: center;
-    text-decoration: none; /* Remove underline if applied to <a> tags */
-    margin-top: 0.5rem; /* Add some space above buttons */
 }
 
 .btn-primary:hover {
+    /* Inherits base hover transform/shadow/filter */
     background-color: var(--primary-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-sm);
+    /* Keep specific hover effects */
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
 }
+
+.btn-secondary {
+    color: var(--text-primary);
+    background-color: var(--secondary-color-bg); /* Use surface color */
+    border-color: var(--secondary-color-border); /* Slightly visible border */
+}
+.btn-secondary:hover {
+    background-color: var(--secondary-hover-bg); /* Lighten slightly on hover */
+    border-color: var(--secondary-hover-border);
+}
+
+.btn-success {
+    color: #fff; /* White text on success */
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-success:hover {
+    background-color: var(--success-hover);
+    border-color: var(--success-hover);
+}
+
+.btn-warning {
+    color: var(--background-darker); /* Dark text on warning */
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.btn-warning:hover {
+    background-color: var(--warning-hover);
+    border-color: var(--warning-hover);
+}
+
+.btn-info {
+    color: #fff;
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+}
+.btn-info:hover {
+    background-color: var(--info-hover);
+    border-color: var(--info-hover);
+}
+
+.btn-danger {
+    color: #fff;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+.btn-danger:hover {
+    background-color: var(--danger-hover);
+    border-color: var(--danger-hover);
+}
+
+
+/* Full Width Button */
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+/* Centered Button Group */
+.button-group-centered {
+    margin-top: 1.5rem; /* Replicate mt-3 */
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem; /* Replicate gap-2 */
+    flex-wrap: wrap; /* Allow buttons to wrap on small screens */
+}
+
+/* --- End Button Styles --- */
+
+/* --- Alert Styles --- */
+.alert {
+    position: relative;
+    padding: 1rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+
+.alert-danger {
+    color: var(--danger-color-text); /* Light red text */
+    background-color: var(--danger-color-bg); /* Semi-transparent red background */
+    border-color: var(--danger-color-border); /* Semi-transparent red border */
+}
+
+.alert-info {
+    color: var(--info-color-text); /* Example info colors */
+    background-color: var(--info-color-bg);
+    border-color: var(--info-color-border);
+}
+
+.alert-warning {
+    color: var(--warning-color-text); /* Dark text for light background */
+    background-color: var(--warning-color-bg);
+    border-color: var(--warning-color-border);
+}
+/* --- End Alert Styles --- */
+
+/* --- List Group Styles --- */
+.list-group {
+    display: flex;
+    flex-direction: column;
+    padding-left: 0;
+    margin-bottom: 1rem; /* Add some bottom margin */
+    border-radius: 8px; /* Match other elements */
+    overflow: hidden; /* Clip borders */
+}
+
+.list-group-item {
+    position: relative;
+    display: block;
+    padding: 0.75rem 1.25rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    background-color: var(--surface-dark); /* Match main container */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Adjust borders for stacked items */
+.list-group-item + .list-group-item {
+    border-top-width: 0;
+}
+
+/* Flex layout for items */
+.list-group-item.d-flex { /* Target items specifically marked for flex */
+    display: flex !important; /* Use important to override default block if needed */
+    justify-content: space-between !important;
+    align-items: center !important;
+}
+/* --- End List Group Styles --- */
+
 
 /* Enhanced Typing Practice Area */
 #current-line-display {
@@ -215,6 +478,27 @@ form textarea:focus {
     transition: all var(--transition-fast);
     width: 100%; /* Make input full width */
     box-sizing: border-box; /* Include padding in width */
+}
+
+/* Practice Page Specific Styles */
+#results {
+    margin-top: 2rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background-color: rgba(255, 255, 255, 0.03); /* Subtle background */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+}
+
+#results p {
+    margin-bottom: 0.5rem; /* Tighter spacing for stats */
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+#results p span {
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 /* Modern Character Highlighting */
@@ -323,6 +607,7 @@ footer {
     text-align: center; /* Replicate text-center */
     color: var(--text-secondary); /* Replicate text-body-secondary */
     flex-shrink: 0; /* Prevent footer from shrinking */
+    border-top: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
 }
 
 /* Footer container specific styles (if needed, but text-align on footer might suffice) */

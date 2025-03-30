@@ -10,13 +10,13 @@
 
 <% if (text) { %>
     <form action="/edit_text/<%= text.id %>" method="POST">
-        <div class="mb-3">
-            <label for="title" class="form-label">Title:</label>
-            <input type="text" id="title" name="title" class="form-control" required value="<%= text.title %>">
+        <div class="form-group"> <%# Replaced mb-3 %>
+            <label for="title">Title:</label> <%# Removed form-label %>
+            <input type="text" id="title" name="title" required value="<%= text.title %>"> <%# Removed form-control %>
         </div>
-        <div class="mb-3">
-            <label for="content" class="form-label">Text Content:</label>
-            <textarea id="content" name="content" class="form-control" required rows="10"><%= text.content %></textarea> <%# Increased rows %>
+        <div class="form-group"> <%# Replaced mb-3 %>
+            <label for="content">Text Content:</label> <%# Removed form-label %>
+            <textarea id="content" name="content" required rows="10"><%= text.content %></textarea> <%# Removed form-control %>
         </div>
         <button type="submit" class="btn btn-primary">Update Text</button>
     </form>
