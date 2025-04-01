@@ -1,7 +1,7 @@
 // This script runs after the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
-    const TARGET_LINE_WIDTH = 60; // Aim for lines around this character length
+    // Line width will be calculated dynamically based on container size and font
 
     // --- DOM Element References ---
     const lineContainer = document.getElementById('current-line-container');
@@ -540,7 +540,36 @@ document.addEventListener('DOMContentLoaded', () => {
     saveButton.addEventListener('click', saveProgressToServer); // Explicit save
 
     // --- Initial Setup ---
-    lines = splitIntoLines(fullText, TARGET_LINE_WIDTH); // Generate display lines
+
+    // Calculate dynamic line width
+    let dynamicTargetWidth = 60; // Default fallback
+    if (lineDisplay && lineDisplay.clientWidth > 0) {
+        const displayWidth = lineDisplay.clientWidth;
+        const tempSpan = document.createElement('span');
+        tempSpan.textContent = 'n'; // Use a potentially more average character
+        const styles = window.getComputedStyle(lineDisplay);
+        tempSpan.style.fontFamily = styles.fontFamily;
+        tempSpan.style.fontSize = styles.fontSize;
+        tempSpan.style.fontWeight = styles.fontWeight;
+        tempSpan.style.letterSpacing = styles.letterSpacing;
+        tempSpan.style.position = 'absolute'; // Prevent layout shift
+        tempSpan.style.visibility = 'hidden'; // Keep it invisible
+        tempSpan.style.left = '-9999px';
+        document.body.appendChild(tempSpan);
+        const charWidth = tempSpan.offsetWidth;
+        document.body.removeChild(tempSpan);
+
+        if (charWidth > 0) {
+            dynamicTargetWidth = Math.max(10, Math.floor(displayWidth / charWidth) - 11); // Further increased buffer based on feedback, ensure minimum width
+            console.log(`Calculated dynamic line width: ${dynamicTargetWidth} chars (Display: ${displayWidth}px, Char: ${charWidth.toFixed(2)}px)`);
+        } else {
+             console.warn("Could not calculate character width, falling back to default.");
+        }
+    } else {
+        console.warn("lineDisplay not found or has no width, falling back to default line width.");
+    }
+
+    lines = splitIntoLines(fullText, dynamicTargetWidth); // Generate display lines using dynamic width
     totalDisplayLength = calculateTotalDisplayLength(lines); // Calculate total length of display structure
     console.log(`Total display structure length: ${totalDisplayLength} characters (including separators)`);
     resetPractice(true); // Initial load attempts to resume from saved progress
