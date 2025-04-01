@@ -159,24 +159,36 @@ function login(username, password) {
 /**
  * Retrieves all texts (ID and title only) belonging to a specific user.
  * @param {number} user_id - The user's ID.
- * @returns {Array<object>} - A list of the user's texts, including progress (e.g., [{ id: 1, title: 'Text A', content_length: 100, progress_index: 50 }, ...]).
+ * Retrieves texts belonging to a specific user, optionally filtered by category.
+ * @param {number} user_id - The user's ID.
+ * @param {number|null} [category_id=null] - The category ID to filter by. If null, fetches texts in the root (category_id IS NULL).
+ * @returns {Array<object>} - A list of the user's texts in the specified category, including progress.
  */
-function get_texts(user_id) {
-    // Prepare statement to select text details and join with user_text_progress
-    // Calculate content length directly in the query
-    const stmt = db.prepare(`
+function get_texts(user_id, category_id = null) {
+    let sql = `
         SELECT
             t.id,
             t.title,
             LENGTH(t.content) as content_length,
-            COALESCE(utp.progress_index, 0) as progress_index
+            COALESCE(utp.progress_index, 0) as progress_index,
+            t.category_id -- Include category_id for potential frontend use
         FROM texts t
         LEFT JOIN user_text_progress utp ON t.id = utp.text_id AND utp.user_id = ?
         WHERE t.user_id = ?
-        ORDER BY t.order_index ASC, t.id ASC -- Order by custom index, then ID for stability
-    `);
-    // Execute with user_id for the JOIN condition and the WHERE clause
-    return stmt.all(user_id, user_id);
+    `;
+    const params = [user_id, user_id]; // Params for JOIN and initial WHERE
+
+    if (category_id === null) {
+        sql += ' AND t.category_id IS NULL';
+    } else {
+        sql += ' AND t.category_id = ?';
+        params.push(category_id);
+    }
+
+    sql += ' ORDER BY t.order_index ASC, t.id ASC'; // Order by custom index, then ID
+
+    const stmt = db.prepare(sql);
+    return stmt.all(...params);
 }
 
 /**
@@ -210,19 +222,19 @@ function get_text(text_id, user_id) {
  * @param {string} content - The content of the text.
  * @returns {number} - The ID of the newly added text, or -1 on error.
  */
-function add_text(user_id, title, content) {
-    // Determine the next order_index for this user
-    const orderStmt = db.prepare('SELECT MAX(order_index) as max_index FROM texts WHERE user_id = ?');
-    const result = orderStmt.get(user_id);
+function add_text(user_id, title, content, category_id = null) {
+    // Determine the next order_index for this user *within the target category*
+    const orderStmt = db.prepare('SELECT MAX(order_index) as max_index FROM texts WHERE user_id = ? AND category_id IS ?'); // Use IS for NULL comparison
+    const result = orderStmt.get(user_id, category_id);
     const next_index = (result && result.max_index !== null) ? result.max_index + 1 : 0;
 
-    // Prepare statement to insert a new text record including the order_index
-    const insertStmt = db.prepare('INSERT INTO texts (user_id, title, content, order_index) VALUES (?, ?, ?, ?)');
+    // Prepare statement to insert a new text record including the order_index and category_id
+    const insertStmt = db.prepare('INSERT INTO texts (user_id, title, content, category_id, order_index) VALUES (?, ?, ?, ?, ?)');
     try {
         // Execute the insert statement
-        const info = insertStmt.run(user_id, title, content, next_index);
+        const info = insertStmt.run(user_id, title, content, category_id, next_index);
         // Return the ID of the newly inserted row
-        console.log(`Text added to DB: ID ${info.lastInsertRowid}, User ${user_id}, OrderIndex ${next_index}`);
+        console.log(`Text added to DB: ID ${info.lastInsertRowid}, User ${user_id}, Category ${category_id}, OrderIndex ${next_index}`);
         return info.lastInsertRowid;
     } catch (err) {
         // Log errors during insertion
@@ -409,27 +421,115 @@ module.exports = {
             return false;
         }
     },
+/**
+ * Renames a category.
+ * @param {number} category_id - The ID of the category to rename.
+ * @param {string} new_name - The new name for the category.
+ * @param {number} user_id - The ID of the user attempting the rename (for authorization).
+ * @returns {boolean} - True if rename was successful, false otherwise (e.g., name conflict, not found, not owned).
+ */
+rename_category: (category_id, new_name, user_id) => {
+    // Need to check for name conflicts within the same parent category first
+    const checkStmt = db.prepare(`
+        SELECT c2.id
+        FROM categories c1
+        LEFT JOIN categories c2 ON c1.user_id = c2.user_id AND COALESCE(c1.parent_category_id, -1) = COALESCE(c2.parent_category_id, -1) AND c2.name = ? AND c2.id != ?
+        WHERE c1.id = ? AND c1.user_id = ?
+    `);
+    const conflict = checkStmt.get(new_name, category_id, category_id, user_id);
 
-    /**
-     * Updates the category_id for a specific text.
-     * @param {number} text_id - The ID of the text to move.
-     * @param {number|null} new_category_id - The ID of the target category (or null to move to root).
-     * @param {number} user_id - The ID of the user attempting the move (for authorization).
-     * @returns {boolean} - True if the update was successful, false otherwise.
-     */
-    move_text_to_category: (text_id, new_category_id, user_id) => {
-        // First, verify the user owns the text
-        // Then, if moving to a category (not root), verify the user owns the target category (optional but good practice)
-        // For simplicity here, we only check text ownership.
-        const stmt = db.prepare('UPDATE texts SET category_id = ? WHERE id = ? AND user_id = ?');
-        try {
-            // TODO: Add check if new_category_id exists and belongs to user if new_category_id is not null
-            const info = stmt.run(new_category_id, text_id, user_id);
-            console.log(`Move text attempt: TextID ${text_id}, TargetCategoryID ${new_category_id}, User ${user_id}, Changes: ${info.changes}`);
-            return info.changes > 0; // Returns true if the text was found and belonged to the user
-        } catch (err) {
-            console.error(`Error moving text ID ${text_id} to category ${new_category_id} for user ${user_id}:`, err);
-            return false;
-        }
+    if (conflict) {
+        console.warn(`Rename category failed: Name conflict for "${new_name}" (Category ID: ${category_id}, User ID: ${user_id})`);
+        return false; // Name conflict exists at the same level
     }
+
+    // Proceed with rename if no conflict
+    const stmt = db.prepare('UPDATE categories SET name = ? WHERE id = ? AND user_id = ?');
+    try {
+        const info = stmt.run(new_name, category_id, user_id);
+        console.log(`Category rename attempt: ID ${category_id}, New Name "${new_name}", User ${user_id}, Changes: ${info.changes}`);
+        return info.changes > 0;
+    } catch (err) {
+        // This catch block might be redundant if the UNIQUE constraint handles it, but good for other errors.
+         if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+             console.warn(`Rename category failed due to UNIQUE constraint: Name "${new_name}" likely exists. (Category ID: ${category_id}, User ID: ${user_id})`);
+         } else {
+            console.error(`Error renaming category ID ${category_id} to "${new_name}" (User ${user_id}):`, err);
+         }
+        return false;
+    }
+},
+
+/**
+ * Checks if a category is empty (contains no texts and no subcategories).
+ * @param {number} category_id - The ID of the category to check.
+ * @param {number} user_id - The ID of the user (for authorization).
+ * @returns {boolean} - True if the category is empty, false otherwise or if not found/owned.
+ */
+is_category_empty: (category_id, user_id) => {
+    // Check for texts in this category
+    const textStmt = db.prepare('SELECT 1 FROM texts WHERE category_id = ? AND user_id = ? LIMIT 1');
+    const hasText = textStmt.get(category_id, user_id);
+    if (hasText) {
+        return false; // Contains texts
+    }
+
+    // Check for subcategories in this category
+    const subCatStmt = db.prepare('SELECT 1 FROM categories WHERE parent_category_id = ? AND user_id = ? LIMIT 1');
+    const hasSubCategory = subCatStmt.get(category_id, user_id);
+    if (hasSubCategory) {
+        return false; // Contains subcategories
+    }
+
+    // Optional: Verify the category actually exists and belongs to the user before declaring it empty
+    const categoryExistsStmt = db.prepare('SELECT 1 FROM categories WHERE id = ? AND user_id = ? LIMIT 1');
+    const categoryExists = categoryExistsStmt.get(category_id, user_id);
+    if (!categoryExists) {
+        console.warn(`is_category_empty check failed: Category ID ${category_id} not found or not owned by User ID ${user_id}`);
+        return false; // Category doesn't exist or isn't owned, so can't be considered "empty" in this context
+    }
+
+    return true; // No texts and no subcategories found, and category exists/is owned
+},
+
+// move_text_to_category function removed
+
+/**
+ * Retrieves all categories for a user as a flat list, indicating hierarchy.
+ * Uses a recursive Common Table Expression (CTE) for efficiency.
+ * @param {number} user_id - The ID of the user.
+ * @returns {Array<object>} - A flat list of category objects ({ id, name, level, path_name }).
+ */
+get_all_categories_flat: (user_id) => {
+    const stmt = db.prepare(`
+        WITH RECURSIVE category_path (id, name, parent_category_id, level, path_name) AS (
+            SELECT
+                id,
+                name,
+                parent_category_id,
+                0 as level,
+                name as path_name
+            FROM categories
+            WHERE parent_category_id IS NULL AND user_id = ?
+            UNION ALL
+            SELECT
+                c.id,
+                c.name,
+                c.parent_category_id,
+                cp.level + 1,
+                cp.path_name || ' / ' || c.name
+            FROM categories c
+            JOIN category_path cp ON c.parent_category_id = cp.id
+            WHERE c.user_id = ? -- Ensure we only join user's categories
+        )
+        SELECT id, name, level, path_name FROM category_path ORDER BY path_name;
+    `);
+    try {
+        // Pass user_id twice: once for the anchor part, once for the recursive part
+        return stmt.all(user_id, user_id);
+    } catch (err) {
+        console.error(`Error fetching all categories flat for user ${user_id}:`, err);
+        return []; // Return empty array on error
+    }
+}
 };

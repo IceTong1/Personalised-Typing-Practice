@@ -68,21 +68,40 @@ router.get('/profile', requireLogin, (req, res) => {
  */
 router.get('/texts', requireLogin, (req, res) => {
     try {
-        // Get user ID from the session
         const userId = req.session.user.id;
-        // Fetch the list of texts for this user from the database, sorted by order_index
-        const texts = db.get_texts(userId);
-        console.log(`Fetching texts page for user ID: ${userId}, Texts found: ${texts.length}`);
-        // Render the 'texts.ejs' view
+        // Get current category ID from query param, default to null (root)
+        // Ensure it's either null or a valid integer
+        let currentCategoryId = req.query.category_id ? parseInt(req.query.category_id, 10) : null;
+        if (isNaN(currentCategoryId)) {
+            currentCategoryId = null; // Default to root if parsing fails
+        }
+
+        // Fetch categories within the current category (subfolders)
+        const categories = db.get_categories(userId, currentCategoryId);
+
+        // Fetch texts within the current category
+        const texts = db.get_texts(userId, currentCategoryId);
+
+        // TODO: Fetch breadcrumbs if currentCategoryId is not null (requires recursive DB query or logic)
+        const breadcrumbs = []; // Placeholder for now
+
+        // Fetch all categories flat list for the "Move" dropdown
+        const allCategoriesFlat = db.get_all_categories_flat(userId);
+
+        console.log(`Fetching texts page for user ID: ${userId}, Category ID: ${currentCategoryId}, Texts: ${texts.length}, Categories: ${categories.length}, All Categories: ${allCategoriesFlat.length}`);
+
         res.render('texts', {
-            user: req.session.user, // Pass user data for the header/navigation
-            texts: texts,          // Pass the array of text objects
-            message: req.query.message || null // Pass any message from query params
+            user: req.session.user,
+            texts: texts,
+            categories: categories,
+            currentCategoryId: currentCategoryId, // Pass the current category ID to the view
+            breadcrumbs: breadcrumbs, // Pass breadcrumbs
+            message: req.query.message || null,
+            allCategoriesFlat: allCategoriesFlat // Pass the flat list for the move dropdown
         });
     } catch (error) {
-        // Handle potential errors during database fetching or rendering
         console.error("Error fetching texts page:", error);
-        res.status(500).send("Error loading texts."); // Send a generic server error response
+        res.status(500).send("Error loading texts.");
     }
 });
 
@@ -93,13 +112,31 @@ router.get('/texts', requireLogin, (req, res) => {
  * Middleware: Requires the user to be logged in (`requireLogin`).
  */
 router.get('/add_text', requireLogin, (req, res) => {
-    // Render the 'add_text.ejs' view
-    res.render('add_text', {
-        user: req.session.user, // Pass user data
-        error: null,            // No error initially
-        title: '',              // Empty title for new text
-        content: ''             // Empty content for new text
-    });
+    const userId = req.session.user.id; // Moved outside try block
+    try {
+        // Fetch all categories for the dropdown
+        const categories = db.get_all_categories_flat(userId);
+        console.log(`Fetching categories for add_text dropdown for user ${userId}: ${categories.length} found.`);
+
+        // Render the 'add_text.ejs' view
+        res.render('add_text', {
+            user: req.session.user, // Pass user data
+            error: null,            // No error initially
+            title: '',              // Empty title for new text
+            content: '',            // Empty content for new text
+            categories: categories  // Pass the flat list of categories
+        });
+    } catch (error) {
+        console.error(`Error fetching categories for add_text page (User ${userId}):`, error);
+        // Render with an error message, but maybe without categories
+        res.render('add_text', {
+            user: req.session.user,
+            error: 'Could not load folder list.',
+            title: '',
+            content: '',
+            categories: [] // Send empty array
+        });
+    }
 });
 
 /**
@@ -112,11 +149,23 @@ router.get('/add_text', requireLogin, (req, res) => {
  */
 router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res) => {
     // Extract title from form body
-    const { title } = req.body;
-    // Get content from textarea (might be empty if PDF is used)
-    let content = req.body.content;
-    // Get user ID from session
-    const userId = req.session.user.id;
+    // Extract title, content, and category_id from form body
+    const { title, category_id } = req.body;
+    let content = req.body.content; // Content from textarea
+    const userId = req.session.user.id; // User ID from session
+
+    // Parse category_id (can be 'root' or an integer ID)
+    let targetCategoryId = null; // Default to root
+    if (category_id && category_id !== 'root') {
+        const parsedId = parseInt(category_id, 10);
+        if (!isNaN(parsedId)) {
+            targetCategoryId = parsedId;
+        } else {
+            // Handle invalid category ID if necessary, maybe return error
+            console.warn(`Invalid category_id received in POST /add_text: ${category_id}`);
+            // For now, let's default to root if parsing fails
+        }
+    }
     // Get uploaded file info from multer (will be undefined if no file uploaded)
     const uploadedFile = req.file;
 
@@ -124,7 +173,8 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
     const renderArgs = {
         user: req.session.user,
         title: title, // Keep submitted title
-        content: content // Keep submitted content
+        content: content, // Keep submitted content
+        categories: [] // Need to re-fetch categories on error render
     };
 
     // --- Input Validation ---
@@ -321,14 +371,27 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
         // Ensure we don't try to save completely empty content after cleanup if it wasn't intended
         // (Re-check validation logic - maybe empty content is allowed?)
         // Assuming empty content IS allowed if explicitly entered or extracted:
-        const newTextId = db.add_text(userId, title, finalContentToSave); // Use original add_text with cleaned content
+        // --- Save to Database ---
+        // Pass the targetCategoryId to the updated db.add_text function
+        const newTextId = db.add_text(userId, title, finalContentToSave, targetCategoryId);
         if (newTextId !== -1) {
-            // Success: Redirect to profile page with a success message
-            console.log(`Text added: ID ${newTextId}, Title: ${title}, User ID: ${userId} (Source: ${uploadedFile ? 'PDF' : 'Textarea'}), Final Length: ${finalContentToSave.length}`);
-            res.redirect('/texts?message=Text added successfully!'); // Redirect to the new texts page
+            // Success: Redirect to the folder where the text was added
+            console.log(`Text added: ID ${newTextId}, Title: ${title}, User ID: ${userId}, Category: ${targetCategoryId} (Source: ${uploadedFile ? 'PDF' : 'Textarea'}), Final Length: ${finalContentToSave.length}`);
+            let redirectUrl = '/texts?message=Text added successfully!';
+            if (targetCategoryId) {
+                redirectUrl += '&category_id=' + targetCategoryId;
+            }
+            res.redirect(redirectUrl);
         } else {
             // Database insertion failed
-            console.error(`Failed to add text to DB for user ID: ${userId}`);
+            console.error(`Failed to add text to DB for user ID: ${userId}, Category: ${targetCategoryId}`);
+            // Re-fetch categories before rendering error
+            try {
+                renderArgs.categories = db.get_all_categories_flat(userId);
+            } catch (fetchErr) {
+                console.error("Error re-fetching categories for error render:", fetchErr);
+                renderArgs.categories = [];
+            }
             renderArgs.error = 'Failed to save text to the database. Please try again.';
             res.render('add_text', renderArgs); // Re-render form with error
         }
@@ -336,6 +399,13 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
         // Catch any other unexpected errors during the process
         console.error("Unexpected error adding text:", error);
         renderArgs.error = 'An unexpected error occurred while adding the text.';
+        // Re-fetch categories before rendering error
+        try {
+            renderArgs.categories = db.get_all_categories_flat(userId);
+        } catch (fetchErr) {
+            console.error("Error re-fetching categories for error render:", fetchErr);
+            renderArgs.categories = [];
+        }
         res.render('add_text', renderArgs); // Re-render form with error
     }
 });
@@ -563,6 +633,140 @@ router.post('/update_text_order', requireLogin, (req, res) => {
         res.status(500).json({ success: false, message: 'Server error updating order.' });
     }
 });
+
+
+// --- Category (Folder) Management Routes ---
+
+/**
+ * Route: POST /categories
+ * Description: Creates a new category (folder).
+ * Middleware: requireLogin
+ * Body: { name: string, parent_category_id: number|null }
+ */
+router.post('/categories', requireLogin, (req, res) => {
+    const { name, parent_category_id } = req.body;
+    const userId = req.session.user.id;
+    let parentId = parent_category_id ? parseInt(parent_category_id, 10) : null;
+
+    if (isNaN(parentId) && parent_category_id != null) { // Check if parsing failed but it wasn't explicitly null
+        return res.redirect(`/texts?message=Invalid parent category ID.`);
+    }
+    if (!name || name.trim().length === 0) {
+        return res.redirect(`/texts${parentId ? '?category_id='+parentId : ''}&message=Folder name cannot be empty.`);
+    }
+
+    try {
+        // TODO: Add check to ensure parentId (if not null) belongs to the user
+        const newCategoryId = db.create_category(userId, name.trim(), parentId);
+        if (newCategoryId !== -1) {
+            console.log(`Category created: ID ${newCategoryId}, Name "${name.trim()}", User ${userId}, Parent ${parentId}`);
+            // Construct redirect URL carefully
+            let redirectUrl = '/texts?message=Folder created successfully!';
+            if (parentId) {
+                redirectUrl += '&category_id=' + parentId;
+            }
+            res.redirect(redirectUrl);
+        } else {
+            console.warn(`Failed to create category "${name.trim()}" for user ${userId}, Parent ${parentId} (likely name conflict)`);
+            // Construct redirect URL carefully
+            let redirectUrl = '/texts?message=Failed to create folder. Name might already exist.';
+            if (parentId) {
+                redirectUrl += '&category_id=' + parentId;
+            }
+            res.redirect(redirectUrl);
+        }
+    } catch (error) {
+        console.error(`Error creating category "${name.trim()}" for user ${userId}:`, error);
+        // Construct redirect URL carefully
+        let redirectUrl = '/texts?message=Server error creating folder.';
+        if (parentId) {
+            redirectUrl += '&category_id=' + parentId;
+        }
+        res.redirect(redirectUrl);
+    }
+});
+
+/**
+ * Route: POST /categories/:category_id/rename
+ * Description: Renames an existing category (folder).
+ * Middleware: requireLogin
+ * Params: category_id
+ * Body: { new_name: string }
+ */
+router.post('/categories/:category_id/rename', requireLogin, (req, res) => {
+    const categoryId = parseInt(req.params.category_id, 10);
+    const { new_name } = req.body;
+    const userId = req.session.user.id;
+
+    if (isNaN(categoryId)) {
+        return res.redirect('/texts?message=Invalid category ID.');
+    }
+    if (!new_name || new_name.trim().length === 0) {
+        // Need parent ID to redirect correctly
+        // TODO: Fetch category details to get parent ID before redirecting
+        return res.redirect(`/texts?message=New folder name cannot be empty.`);
+    }
+
+    try {
+        // TODO: Fetch category details to get parent ID for redirect
+        const success = db.rename_category(categoryId, new_name.trim(), userId);
+        if (success) {
+            console.log(`Category renamed: ID ${categoryId}, New Name "${new_name.trim()}", User ${userId}`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(`/texts?message=Folder renamed successfully!`);
+        } else {
+            console.warn(`Failed to rename category ID ${categoryId} to "${new_name.trim()}" for user ${userId} (not found, not owned, or name conflict)`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(`/texts?message=Failed to rename folder. Name might already exist or folder not found.`);
+        }
+    } catch (error) {
+        console.error(`Error renaming category ID ${categoryId} for user ${userId}:`, error);
+        // TODO: Use fetched parent ID in redirect
+        res.redirect(`/texts?message=Server error renaming folder.`);
+    }
+});
+
+/**
+ * Route: POST /categories/:category_id/delete
+ * Description: Deletes an empty category (folder).
+ * Middleware: requireLogin
+ * Params: category_id
+ */
+router.post('/categories/:category_id/delete', requireLogin, (req, res) => {
+    const categoryId = parseInt(req.params.category_id, 10);
+    const userId = req.session.user.id;
+
+    if (isNaN(categoryId)) {
+        return res.redirect('/texts?message=Invalid category ID.');
+    }
+
+    try {
+        // TODO: Fetch category details to get parent ID for redirect
+        const isEmpty = db.is_category_empty(categoryId, userId);
+        if (!isEmpty) {
+            console.warn(`Attempt to delete non-empty category ID ${categoryId} by user ${userId}`);
+            // TODO: Use fetched parent ID in redirect
+            return res.redirect(`/texts?message=Cannot delete folder. It is not empty.`);
+        }
+
+        const success = db.delete_category(categoryId, userId);
+        if (success) {
+            console.log(`Category deleted: ID ${categoryId}, User ${userId}`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(`/texts?message=Folder deleted successfully!`);
+        } else {
+            console.warn(`Failed to delete category ID ${categoryId} for user ${userId} (not found or not owned)`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(`/texts?message=Failed to delete folder. Folder not found.`);
+        }
+    } catch (error) {
+        console.error(`Error deleting category ID ${categoryId} for user ${userId}:`, error);
+        // TODO: Use fetched parent ID in redirect
+        res.redirect(`/texts?message=Server error deleting folder.`);
+    }
+});
+
+// --- Route for moving text removed ---
 
 
 // --- Export Router ---

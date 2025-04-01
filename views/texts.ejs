@@ -1,68 +1,143 @@
 <%- include('partials/header', { user: user }) %>
 
-<div class="flex-between-center mb-4">
-    <h2>Your Texts</h2>
-    <a href="/add_text" class="btn btn-primary">Add New Text</a>
-</div>
+<div class="container mt-4">
 
-<% if (message) { %>
-    <div class="alert alert-info" role="alert">
-        <%= message %>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="/texts"><i class="fas fa-home"></i> Root</a></li>
+                <%# TODO: Add breadcrumb items from controller %>
+                <% if (currentCategoryId) { %>
+                    <%# Placeholder for current folder name - requires fetching details %>
+                    <li class="breadcrumb-item active" aria-current="page">Current Folder</li>
+                <% } %>
+            </ol>
+        </nav>
+        <a href="/add_text" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Add New Text</a>
     </div>
-<% } %>
 
-<% if (texts && texts.length > 0) { %>
-    <div id="text-list" class="list-group">
-        <% texts.forEach(text => { %>
-            <%
-                let percentage = 0;
-                // Calculate percentage, handle division by zero for empty texts
-                if (text.content_length && text.content_length > 0) {
-                    percentage = Math.round((text.progress_index / text.content_length) * 100);
-                } else if (text.progress_index === 0 && text.content_length === 0) {
-                    // If content is empty and progress is 0, consider it 100% complete
-                    percentage = 100;
-                }
-                // Ensure percentage doesn't exceed 100
-                percentage = Math.min(percentage, 100);
-            %>
-            <div class="list-group-item d-flex" data-id="<%= text.id %>">
-                <span>
-                    <%= text.title %>
-                    <small class="text-muted ms-2">(<%= percentage %>%)</small>
-                </span>
-                <div class="actions">
-                    <a href="/practice/<%= text.id %>" class="btn btn-sm btn-info practice-btn">Practice</a>
-                    <a href="/edit_text/<%= text.id %>" class="btn btn-sm btn-warning edit-btn">Edit</a>
-                    <form action="/delete_text/<%= text.id %>" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-danger delete-btn" onclick="return confirm('Are you sure you want to delete this text?');">Delete</button>
-                    </form>
+    <% if (message) { %>
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <%= message %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <% } %>
+
+    <!-- Create Folder Form -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form action="/categories" method="POST" class="d-flex">
+                <input type="hidden" name="parent_category_id" value="<%= currentCategoryId %>">
+                <input type="text" name="name" class="form-control me-2" placeholder="New folder name..." required>
+                <button type="submit" class="btn btn-success"><i class="fas fa-folder-plus"></i> Create</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Folders List -->
+    <% if (categories && categories.length > 0) { %>
+        <h4 class="mb-2">Folders</h4>
+        <div class="list-group mb-4">
+            <% categories.forEach(category => { %>
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="/texts?category_id=<%= category.id %>" class="text-decoration-none flex-grow-1">
+                        <i class="fas fa-folder me-2"></i><%= category.name %>
+                    </a>
+                    <div class="folder-actions">
+                        <!-- Rename Form (Inline for simplicity, could be modal) -->
+                        <form action="/categories/<%= category.id %>/rename" method="POST" class="d-inline-block me-1" onsubmit="return handleRename(this);">
+                            <input type="hidden" name="new_name" value="<%= category.name %>"> <%# Pre-fill for prompt %>
+                            <button type="submit" class="btn btn-sm btn-outline-warning"><i class="fas fa-edit"></i></button>
+                        </form>
+                        <!-- Delete Form -->
+                        <form action="/categories/<%= category.id %>/delete" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this folder? Only empty folders can be deleted.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
                 </div>
-            </div>
-        <% }); %>
-    </div>
-<% } else { %>
-    <p class="text-center text-body-secondary mt-4">You haven't added any texts yet. <a href="/add_text">Add one now!</a></p>
-<% } %>
+            <% }); %>
+        </div>
+    <% } %>
+
+    <!-- Texts List -->
+    <h4 class="mb-2">Texts</h4>
+    <% if (texts && texts.length > 0) { %>
+        <div id="text-list" class="list-group">
+            <% texts.forEach(text => { %>
+                <%
+                    let percentage = 0;
+                    if (text.content_length && text.content_length > 0) {
+                        percentage = Math.round((text.progress_index / text.content_length) * 100);
+                    } else if (text.progress_index === 0 && text.content_length === 0) {
+                        percentage = 100;
+                    }
+                    percentage = Math.min(percentage, 100);
+                %>
+                <div class="list-group-item d-flex justify-content-between align-items-center" data-id="<%= text.id %>">
+                    <span class="flex-grow-1">
+                         <i class="fas fa-file-alt me-2 text-muted"></i>
+                        <%= text.title %>
+                        <small class="text-muted ms-2">(<%= percentage %>%)</small>
+                    </span>
+                    <div class="actions d-flex align-items-center">
+                        <!-- Bootstrap Dropdown for Move -->
+                        <%# Move dropdown removed %>
+
+                        <!-- Other Action Buttons -->
+                        <a href="/practice/<%= text.id %>" class="btn btn-sm btn-info practice-btn me-1" title="Practice"><i class="fas fa-keyboard"></i></a>
+                        <a href="/edit_text/<%= text.id %>" class="btn btn-sm btn-warning edit-btn me-1" title="Edit"><i class="fas fa-edit"></i></a>
+                        <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this text?');">
+                            <button type="submit" class="btn btn-sm btn-danger delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+    <% } else { %>
+         <p class="text-center text-body-secondary mt-3">
+            <% if (categories && categories.length > 0) { %>
+                No texts in this folder.
+            <% } else { %>
+                 This folder is empty. Add texts or create subfolders.
+            <% } %>
+         </p>
+    <% } %>
+
+     <% if (!texts || texts.length === 0 && (!categories || categories.length === 0)) { %>
+         <p class="text-center text-body-secondary mt-4">This folder is empty. <a href="/add_text">Add a text</a> or create a new folder above.</p>
+     <% } %>
+
+
+</div>
 
 <%- include('partials/footer') %>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script>
+    // Rename Handler (simple prompt version)
+    function handleRename(form) {
+        const currentName = form.querySelector('input[name="new_name"]').value;
+        const newName = prompt("Enter new folder name:", currentName);
+        if (newName && newName.trim() !== '' && newName !== currentName) {
+            form.querySelector('input[name="new_name"]').value = newName.trim();
+            return true; // Proceed with form submission
+        }
+        return false; // Cancel submission
+    }
+
+    // SortableJS for Texts
     const textList = document.getElementById('text-list');
     if (textList) {
         new Sortable(textList, {
-            animation: 150, // ms, animation speed moving items when sorting, `0` — without animation
-            ghostClass: 'sortable-ghost', // Class name for the drop placeholder
-            chosenClass: 'sortable-chosen', // Class name for the chosen item
-            dragClass: 'sortable-drag', // Class name for the dragging item
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
             onEnd: function (evt) {
-                // Get the new order of text IDs
                 const items = evt.to.children;
                 const order = Array.from(items).map(item => item.dataset.id);
 
-                // Send the new order to the server
-                fetch('/update_text_order', {
+                fetch('/update_text_order', { // TODO: This needs context of the current folder if ordering is per-folder
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -70,9 +145,14 @@
                     body: JSON.stringify({ order: order }),
                 })
                 .then(response => response.json())
-                .then(data => console.log('Order updated:', data)) // Optional: handle response
-                .catch((error) => console.error('Error updating order:', error));
+                .then(data => {
+                    if (!data.success) console.error('Failed to update text order:', data.message);
+                    else console.log('Text order updated');
+                 })
+                .catch((error) => console.error('Error updating text order:', error));
             },
         });
     }
+
+    // Removed toggleMoveForm function as it's no longer needed
 </script>

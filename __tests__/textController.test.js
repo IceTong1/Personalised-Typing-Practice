@@ -21,10 +21,9 @@ jest.mock('../models/db', () => ({
     create_category: jest.fn(),
     get_categories: jest.fn(),
     delete_category: jest.fn(),
-    move_text_to_category: jest.fn(),
     get_folders: jest.fn(),
+    get_all_categories_flat: jest.fn(), // Added mock function
     get_files: jest.fn(),
-    add_file: jest.fn(),
     create_folder: jest.fn(),
     get_file_metadata: jest.fn(),
     delete_file: jest.fn(),
@@ -213,6 +212,7 @@ describe('Text Controller', () => {
 
         test('should render add_text view', async () => {
             req = mockRequest();
+            db.get_all_categories_flat.mockReturnValue([]); // Mock successful category fetch
             await getAddTextHandler(req, res);
 
             // expect(requireLogin).toHaveBeenCalledTimes(1); // Removed check
@@ -220,7 +220,8 @@ describe('Text Controller', () => {
                 user: req.session.user,
                 error: null,
                 title: '',
-                content: ''
+                content: '',
+                categories: [] // Expect categories array now
             });
         });
     });
@@ -237,7 +238,7 @@ describe('Text Controller', () => {
             await postAddTextHandler(req, res);
 
             // expect(requireLogin).toHaveBeenCalledTimes(1); // Removed check
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'New Text', 'Some content.');
+            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'New Text', 'Some content.', null); // Added null for category_id
             expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text added successfully!');
             expect(res.render).not.toHaveBeenCalled();
         });
@@ -263,10 +264,11 @@ describe('Text Controller', () => {
          test('should fail if db.add_text fails (textarea)', async () => {
             req = mockRequest({}, { title: 'DB Fail Text', content: 'Content' });
             db.add_text.mockReturnValue(-1); // Simulate DB error
+            db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'DB Fail Text', 'Content');
+            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'DB Fail Text', 'Content', null); // Added null for category_id
             expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Failed to save text to the database. Please try again.' }));
             expect(res.redirect).not.toHaveBeenCalled();
         });
@@ -293,7 +295,7 @@ describe('Text Controller', () => {
             expect(tmp.tmpNameSync).toHaveBeenCalled();
             expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf', mockPdfFile.buffer);
             expect(execFileSync).toHaveBeenCalledWith('pdftotext', ['-enc', 'UTF-8', '/tmp/mock-temp-file.pdf', '-'], { encoding: 'utf8' });
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'PDF Text', cleanedText);
+            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'PDF Text', cleanedText, null); // Added null for category_id
             expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
             expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text added successfully!');
             expect(res.render).not.toHaveBeenCalled();
@@ -365,11 +367,12 @@ describe('Text Controller', () => {
             req = mockRequest({}, { title: 'PDF DB Fail' }, {}, {}, mockPdfFile);
             execFileSync.mockReturnValue('Some extracted text.');
             db.add_text.mockReturnValue(-1);
+            db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
             expect(execFileSync).toHaveBeenCalled();
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'PDF DB Fail', 'Some extracted text.');
+            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'PDF DB Fail', 'Some extracted text.', null); // Added null for category_id
             expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
             expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Failed to save text to the database. Please try again.' }));
             expect(res.redirect).not.toHaveBeenCalled();
