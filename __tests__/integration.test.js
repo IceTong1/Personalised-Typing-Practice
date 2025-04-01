@@ -110,9 +110,10 @@ describe('Integration Tests', () => {
             // Follow the redirect and check the profile page content
             const profileRes = await agent.get('/profile');
             expect(profileRes.statusCode).toEqual(200);
-            // Updated assertion to match actual profile heading
-            expect(profileRes.text).toContain('<h2>Your Texts</h2>');
-            expect(db.get_texts).toHaveBeenCalledWith(123);
+            // Updated assertion to match actual profile content
+            expect(profileRes.text).toContain('<h2>Profile</h2>');
+            expect(profileRes.text).toContain('<h3>Your Statistics</h3>');
+            expect(db.get_texts).not.toHaveBeenCalled(); // Profile no longer fetches texts
         });
 
         it('should fail login with incorrect credentials', async () => {
@@ -142,9 +143,10 @@ describe('Integration Tests', () => {
             // Follow redirect
             const profileRes = await agent.get('/profile');
             expect(profileRes.statusCode).toEqual(200);
-             // Updated assertion to match actual profile heading
-            expect(profileRes.text).toContain('<h2>Your Texts</h2>');
-            expect(db.get_texts).toHaveBeenCalledWith(456);
+             // Updated assertion to match actual profile content
+            expect(profileRes.text).toContain('<h2>Profile</h2>');
+            expect(profileRes.text).toContain('<h3>Your Statistics</h3>');
+            expect(db.get_texts).not.toHaveBeenCalled(); // Profile no longer fetches texts
         });
 
         it('should logout successfully and redirect to homepage', async () => {

@@ -35,20 +35,54 @@ router.get('/profile', requireLogin, (req, res) => {
     try {
         // Get user ID from the session
         const userId = req.session.user.id;
-        // Fetch the list of texts (id and title) for this user from the database
-        // Fetch texts, now sorted by order_index (modification needed in db.js)
-        const texts = db.get_texts(userId);
-        console.log(`Fetching profile for user ID: ${userId}, Texts found: ${texts.length}`);
+
+        // --- Fetch User Statistics (Placeholder) ---
+        // TODO: Implement db.get_user_stats(userId) in models/db.js
+        // For now, using placeholder data
+        const stats = {
+            textsPracticed: 0, // Example stat
+            totalPracticeTime: '0h 0m', // Example stat
+            averageAccuracy: 0 // Example stat
+        };
+        // const stats = db.get_user_stats(userId); // Uncomment when implemented
+
+        console.log(`Fetching profile stats for user ID: ${userId}`);
+
         // Render the 'profile.ejs' view
         res.render('profile', {
             user: req.session.user, // Pass user data for the header/navigation
-            texts: texts,          // Pass the array of text objects
-            message: req.query.message || null // Pass any message from query params (e.g., success/error after actions)
+            stats: stats,           // Pass the user statistics object
+            message: req.query.message || null // Pass any message from query params
         });
     } catch (error) {
         // Handle potential errors during database fetching or rendering
-        console.error("Error fetching profile:", error);
+        console.error("Error fetching profile stats:", error);
         res.status(500).send("Error loading profile."); // Send a generic server error response
+    }
+});
+
+/**
+ * Route: GET /texts
+ * Description: Displays the user's texts page, showing a list of their saved texts.
+ * Middleware: Requires the user to be logged in (`requireLogin`).
+ */
+router.get('/texts', requireLogin, (req, res) => {
+    try {
+        // Get user ID from the session
+        const userId = req.session.user.id;
+        // Fetch the list of texts for this user from the database, sorted by order_index
+        const texts = db.get_texts(userId);
+        console.log(`Fetching texts page for user ID: ${userId}, Texts found: ${texts.length}`);
+        // Render the 'texts.ejs' view
+        res.render('texts', {
+            user: req.session.user, // Pass user data for the header/navigation
+            texts: texts,          // Pass the array of text objects
+            message: req.query.message || null // Pass any message from query params
+        });
+    } catch (error) {
+        // Handle potential errors during database fetching or rendering
+        console.error("Error fetching texts page:", error);
+        res.status(500).send("Error loading texts."); // Send a generic server error response
     }
 });
 
@@ -291,7 +325,7 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
         if (newTextId !== -1) {
             // Success: Redirect to profile page with a success message
             console.log(`Text added: ID ${newTextId}, Title: ${title}, User ID: ${userId} (Source: ${uploadedFile ? 'PDF' : 'Textarea'}), Final Length: ${finalContentToSave.length}`);
-            res.redirect('/profile?message=Text added successfully!');
+            res.redirect('/texts?message=Text added successfully!'); // Redirect to the new texts page
         } else {
             // Database insertion failed
             console.error(`Failed to add text to DB for user ID: ${userId}`);
@@ -360,7 +394,7 @@ router.post('/edit_text/:text_id', requireLogin, requireOwnership, (req, res) =>
         if (success) {
             // Success: Redirect to profile page with success message
             console.log(`Text updated: ID ${textId}, Title: ${title}, User ID: ${userId}`);
-            res.redirect('/profile?message=Text updated successfully!');
+            res.redirect('/texts?message=Text updated successfully!'); // Redirect to the new texts page
         } else {
             // Database update failed (e.g., text deleted between check and update)
             console.error(`Failed to update text ID ${textId} for user ID ${userId}`);
@@ -401,16 +435,16 @@ router.post('/delete_text/:text_id', requireLogin, requireOwnership, (req, res) 
         if (success) {
             // Success: Redirect to profile with success message
             console.log(`Text deleted: ID ${textId}, User ID: ${userId}`);
-            res.redirect('/profile?message=Text deleted successfully!');
+            res.redirect('/texts?message=Text deleted successfully!'); // Redirect to the new texts page
         } else {
             // Deletion failed (e.g., text already deleted)
             console.warn(`Failed to delete text ID ${textId} for user ID ${userId} (already deleted or DB issue?)`);
-            res.redirect('/profile?message=Could not delete text. It might have already been removed.');
+            res.redirect('/texts?message=Could not delete text. It might have already been removed.'); // Redirect to the new texts page
         }
     } catch (error) {
         // Catch unexpected errors during database operation
         console.error(`Error deleting text ID ${textId} for user ID ${userId}:`, error);
-        res.redirect('/profile?message=An error occurred while deleting the text.');
+        res.redirect('/texts?message=An error occurred while deleting the text.'); // Redirect to the new texts page
     }
 });
 
@@ -436,7 +470,7 @@ router.get('/practice/:text_id', requireLogin, requireOwnership, (req, res) => {
         if (!textData) {
             // This case should ideally be caught by requireOwnership, but check again.
             console.error(`Text not found in GET /practice/:text_id even after ownership check? ID: ${textId}`);
-            return res.redirect('/profile?message=Text not found.');
+            return res.redirect('/texts?message=Text not found.'); // Redirect to the new texts page
         }
 
         console.log(`Rendering practice page for text ID: ${textId}, User ID: ${userId}, Progress: ${textData.progress_index}`);
@@ -448,7 +482,7 @@ router.get('/practice/:text_id', requireLogin, requireOwnership, (req, res) => {
 
     } catch (error) {
         console.error(`Error fetching text/progress for practice page (Text ID: ${textId}, User ID: ${userId}):`, error);
-        res.redirect('/profile?message=Error loading practice text.');
+        res.redirect('/texts?message=Error loading practice text.'); // Redirect to the new texts page
     }
 });
 
