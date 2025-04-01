@@ -10,14 +10,31 @@
 
 <% if (text) { %>
     <form action="/edit_text/<%= text.id %>" method="POST">
-        <div class="form-group"> <%# Replaced mb-3 %>
-            <label for="title">Title:</label> <%# Removed form-label %>
-            <input type="text" id="title" name="title" required value="<%= text.title %>"> <%# Removed form-control %>
+        <div class="mb-3"> <%# Use Bootstrap margin class %>
+            <label for="title" class="form-label">Title:</label> <%# Add form-label class %>
+            <input type="text" class="form-control" id="title" name="title" required value="<%= text.title %>"> <%# Add form-control class %>
         </div>
-        <div class="form-group"> <%# Replaced mb-3 %>
-            <label for="content">Text Content:</label> <%# Removed form-label %>
-            <textarea id="content" name="content" required rows="10"><%= text.content %></textarea> <%# Removed form-control %>
+        <div class="mb-3"> <%# Use Bootstrap margin class %>
+            <label for="content" class="form-label">Text Content:</label> <%# Add form-label class %>
+            <textarea class="form-control" id="content" name="content" required rows="10"><%= text.content %></textarea> <%# Add form-control class %>
         </div>
+
+        <div class="mb-3"> <%# Added folder selection %>
+            <label for="category_id" class="form-label">Save to Folder:</label>
+            <select class="form-select" id="category_id" name="category_id">
+                <option value="root" <%= (!text.category_id) ? 'selected' : '' %>>-- Root --</option> <%# Select root if no category %>
+                <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
+                    <% categories.forEach(category => { %>
+                        <option value="<%= category.id %>" <%= (text.category_id && text.category_id == category.id) ? 'selected' : '' %>> <%# Select current category %>
+                            <%# Add indentation based on level for visual hierarchy %>
+                            <% for(let i = 0; i < category.level; i++) { %>&nbsp;&nbsp;&nbsp;<% } %>
+                            <%= category.path_name %> <%# Display full path name %>
+                        </option>
+                    <% }); %>
+                <% } %>
+            </select>
+        </div>
+
         <button type="submit" class="btn btn-primary">Update Text</button>
     </form>
 <% } else { %>

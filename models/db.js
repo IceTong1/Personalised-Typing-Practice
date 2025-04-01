@@ -244,20 +244,22 @@ function add_text(user_id, title, content, category_id = null) {
 }
 
 /**
- * Updates the title and content of an existing text in the 'texts' table.
+ * Updates the title, content, and category of an existing text in the 'texts' table.
  * @param {number} text_id - The ID of the text to update.
  * @param {string} title - The new title.
  * @param {string} content - The new content.
+ * @param {number|null} category_id - The new category ID (or null for root).
  * @returns {boolean} - True if the update was successful (at least one row changed), false otherwise.
  */
-function update_text(text_id, title, content) {
-    // Prepare statement to update title and content for a specific text ID
-    const stmt = db.prepare('UPDATE texts SET title = ?, content = ? WHERE id = ?');
+function update_text(text_id, title, content, category_id = null) {
+    // Prepare statement to update title, content, and category_id for a specific text ID
+    // Use `category_id = ?` which handles NULL correctly if category_id is null
+    const stmt = db.prepare('UPDATE texts SET title = ?, content = ?, category_id = ? WHERE id = ?');
     try {
-        // Execute the update statement
-        const info = stmt.run(title, content, text_id);
+        // Execute the update statement with the new category_id
+        const info = stmt.run(title, content, category_id, text_id);
         // Return true if any rows were changed, false otherwise
-        console.log(`Text updated in DB: ID ${text_id}, Changes: ${info.changes}`);
+        console.log(`Text updated in DB: ID ${text_id}, Category ${category_id}, Changes: ${info.changes}`);
         return info.changes > 0;
     } catch (err) {
         // Log errors during update

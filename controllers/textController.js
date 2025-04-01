@@ -421,11 +421,28 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
 router.get('/edit_text/:text_id', requireLogin, requireOwnership, (req, res) => {
     // The text object (req.text) is guaranteed to exist and belong to the user
     // due to the requireOwnership middleware succeeding.
-    res.render('edit_text', {
-        user: req.session.user, // Pass user data
-        text: req.text,         // Pass the text object to pre-fill the form
-        error: null             // No error initially
-    });
+    const userId = req.session.user.id;
+    try {
+        // Fetch all categories for the dropdown
+        const categories = db.get_all_categories_flat(userId);
+        console.log(`Fetching categories for edit_text dropdown for user ${userId}: ${categories.length} found.`);
+
+        res.render('edit_text', {
+            user: req.session.user, // Pass user data
+            text: req.text,         // Pass the text object to pre-fill the form
+            categories: categories, // Pass the flat list of categories
+            error: null             // No error initially
+        });
+    } catch (error) {
+        console.error(`Error fetching categories for edit_text page (User ${userId}, Text ${req.params.text_id}):`, error);
+        // Render with an error message, but still show the text data
+        res.render('edit_text', {
+            user: req.session.user,
+            text: req.text, // Still pass the text data
+            categories: [], // Send empty array for categories
+            error: 'Could not load folder list.'
+        });
+    }
     // Error handling (text not found, not owned) is done within requireOwnership middleware
 });
 
@@ -439,49 +456,85 @@ router.get('/edit_text/:text_id', requireLogin, requireOwnership, (req, res) => 
 router.post('/edit_text/:text_id', requireLogin, requireOwnership, (req, res) => {
     // Get text ID from URL parameters
     const textId = req.params.text_id;
-    // Get updated title and content from form body
-    const { title, content } = req.body;
+    // Get updated title, content, and category_id from form body
+    const { title, content, category_id } = req.body;
     // Get user ID from session
     const userId = req.session.user.id;
     // req.text (original text) is available from requireOwnership if needed, but not used here
 
+    // Parse category_id (can be 'root' or an integer ID)
+    let targetCategoryId = null; // Default to root
+    if (category_id && category_id !== 'root') {
+        const parsedId = parseInt(category_id, 10);
+        if (!isNaN(parsedId)) {
+            targetCategoryId = parsedId;
+        } else {
+            console.warn(`Invalid category_id received in POST /edit_text: ${category_id}`);
+            // Default to root if parsing fails
+        }
+    }
+
+    // Prepare arguments for re-rendering the form in case of errors
+    const renderArgs = {
+        user: req.session.user,
+        // Pass a temporary text object with the submitted data
+        text: { id: textId, title: title, content: content, category_id: targetCategoryId }, // Include category_id
+        categories: [], // Need to re-fetch categories on error render
+        error: null
+    };
+
+
     // --- Input Validation ---
     if (!title || !content) {
         console.log(`Edit failed for text ID ${textId}: Title or content empty.`);
-        // Re-render edit form with error and submitted data
-        return res.render('edit_text', {
-            user: req.session.user,
-            // Pass a temporary text object with the submitted (invalid) data
-            text: { id: textId, title: title, content: content },
-            error: 'Title and content cannot be empty.'
-        });
+        renderArgs.error = 'Title and content cannot be empty.';
+        // Re-fetch categories before rendering error
+        try {
+            renderArgs.categories = db.get_all_categories_flat(userId);
+        } catch (fetchErr) {
+            console.error("Error re-fetching categories for error render:", fetchErr);
+            renderArgs.categories = [];
+        }
+        return res.render('edit_text', renderArgs);
     }
 
     // --- Update Database ---
     try {
-        // Attempt to update the text in the database
-        const success = db.update_text(textId, title, content);
+        // Attempt to update the text in the database, now including category_id
+        const success = db.update_text(textId, title, content, targetCategoryId);
         if (success) {
-            // Success: Redirect to profile page with success message
-            console.log(`Text updated: ID ${textId}, Title: ${title}, User ID: ${userId}`);
-            res.redirect('/texts?message=Text updated successfully!'); // Redirect to the new texts page
+            // Success: Redirect to the folder where the text now resides
+            console.log(`Text updated: ID ${textId}, Title: ${title}, User ID: ${userId}, Category: ${targetCategoryId}`);
+            let redirectUrl = '/texts?message=Text updated successfully!';
+            if (targetCategoryId) {
+                redirectUrl += '&category_id=' + targetCategoryId;
+            }
+            res.redirect(redirectUrl);
         } else {
             // Database update failed (e.g., text deleted between check and update)
-            console.error(`Failed to update text ID ${textId} for user ID ${userId}`);
-            res.render('edit_text', {
-                user: req.session.user,
-                text: { id: textId, title: title, content: content }, // Show submitted data
-                error: 'Failed to update text. Please try again.'
-            });
+            console.error(`Failed to update text ID ${textId} for user ID ${userId}, Category: ${targetCategoryId}`);
+            renderArgs.error = 'Failed to update text. Please try again.';
+            // Re-fetch categories before rendering error
+            try {
+                renderArgs.categories = db.get_all_categories_flat(userId);
+            } catch (fetchErr) {
+                console.error("Error re-fetching categories for error render:", fetchErr);
+                renderArgs.categories = [];
+            }
+            res.render('edit_text', renderArgs);
         }
     } catch (error) {
         // Catch unexpected errors during database operation
-        console.error(`Error updating text ID ${textId} for user ID ${userId}:`, error);
-        res.render('edit_text', {
-            user: req.session.user,
-            text: { id: textId, title: title, content: content }, // Show submitted data
-            error: 'An unexpected error occurred while updating the text.'
-        });
+        console.error(`Error updating text ID ${textId} for user ID ${userId}, Category: ${targetCategoryId}:`, error);
+        renderArgs.error = 'An unexpected error occurred while updating the text.';
+        // Re-fetch categories before rendering error
+        try {
+            renderArgs.categories = db.get_all_categories_flat(userId);
+        } catch (fetchErr) {
+            console.error("Error re-fetching categories for error render:", fetchErr);
+            renderArgs.categories = [];
+        }
+        res.render('edit_text', renderArgs);
     }
 });
 

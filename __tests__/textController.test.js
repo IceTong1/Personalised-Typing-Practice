@@ -388,14 +388,16 @@ describe('Text Controller', () => {
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             // Simulate middleware attaching text
             req.text = { id: textId, user_id: 1, title: `Mock Text ${textId}`, content: 'Content', progress_index: 0 };
-
+            db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for GET
             await getEditTextHandler(req, res);
 
             // expect(requireLogin).toHaveBeenCalledTimes(1); // Removed
             // expect(requireOwnership).toHaveBeenCalledTimes(1); // Removed
+            expect(db.get_all_categories_flat).toHaveBeenCalledWith(req.session.user.id); // Check category fetch
             expect(res.render).toHaveBeenCalledWith('edit_text', {
                 user: req.session.user,
                 text: req.text, // Check the text attached by middleware mock
+                categories: [], // Expect categories array
                 error: null
             });
         });
@@ -419,7 +421,7 @@ describe('Text Controller', () => {
             await postEditTextHandler(req, res);
 
             // expect(requireOwnership).toHaveBeenCalledTimes(1); // Removed
-            expect(db.update_text).toHaveBeenCalledWith(textId.toString(), 'Updated Title', 'Updated Content');
+            expect(db.update_text).toHaveBeenCalledWith(textId.toString(), 'Updated Title', 'Updated Content', null); // Added null for category_id
             expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text updated successfully!');
             expect(res.render).not.toHaveBeenCalled();
         });
