@@ -451,50 +451,79 @@ form textarea:focus {
 /* --- End List Group Styles --- */
 
 
-/* Enhanced Typing Practice Area */
+/* Remove container styles as it's no longer used for layering */
+/* .typing-area-container { ... } */
+
+/* Style for the visible text display box */
+/* Style for the visible text display box */
 #current-line-display {
+    /* Remove positioning related to layering */
+    /* position: relative; */
+    /* z-index: 1; */
     font-family: 'JetBrains Mono', monospace;
-    font-size: 1.4rem;
-    background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-    box-shadow: inset var(--shadow-sm);
-    transition: all var(--transition-smooth);
-    /* Ensure spaces between inline-block spans are preserved */
+    font-size: 1.6rem;
+    background-color: #000; /* Keep black background */
+    color: var(--text-primary);
+    border: 1px solid rgba(129, 199, 132, 0.5);
+    border-radius: 10px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1rem; /* Add margin below the display, above the input */
+    box-shadow: var(--shadow-sm);
     white-space: pre-wrap;
-    word-spacing: normal; /* Reset word-spacing if affected */
-    line-height: 1.8; /* Adjust line height for better readability */
+    line-height: 1.8;
+    min-height: 100px;
 }
 
+/* Style for the VISIBLE input area below the display */
 #typing-input {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.4rem;
-    background-color: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 1.5rem;
-    transition: all var(--transition-fast);
-    width: 100%; /* Make input full width */
-    box-sizing: border-box; /* Include padding in width */
-    color: #fff; /* Make typed text white */
+    /* Remove absolute positioning and transparency */
+    /* position: absolute; ... */
+    width: 100%;
+    font-family: 'JetBrains Mono', monospace; /* Keep font consistent */
+    font-size: 1.4rem; /* Slightly smaller than display is fine */
+    line-height: 1.6;
+    padding: 1rem 1.5rem; /* Standard padding */
+    background-color: rgba(255, 255, 255, 0.05); /* Use standard input background */
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Standard input border */
+    color: var(--text-primary); /* Standard text color */
+    caret-color: var(--primary-color); /* Keep caret color */
+    resize: vertical; /* Allow vertical resize */
+    border-radius: 8px; /* Standard border radius */
+    box-sizing: border-box;
+    margin-top: 0; /* Display has margin-bottom now */
+    /* Remove height: 100% */
+    /* Remove z-index */
+    /* Remove overflow: hidden */
+}
+
+/* Standard focus style for visible input */
+#typing-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.2);
+    background-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Practice Page Specific Styles */
+/* Style for the results/stats area */
 #results {
-    margin-top: 2rem;
+    display: flex; /* Arrange stats horizontally */
+    justify-content: center; /* Center the stats */
+    gap: 2rem; /* Space between stats */
+    margin-top: 1.5rem;
     margin-bottom: 1.5rem;
-    padding: 1rem;
-    background-color: rgba(255, 255, 255, 0.03); /* Subtle background */
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    padding: 0.5rem 0; /* Minimal vertical padding */
+    background-color: transparent; /* Remove background */
+    border: none; /* Remove border */
+    border-radius: 0;
 }
 
+/* Style individual stat paragraphs */
 #results p {
-    margin-bottom: 0.5rem; /* Tighter spacing for stats */
-    font-size: 0.95rem;
-    color: var(--text-secondary);
+    margin-bottom: 0; /* Remove bottom margin */
+    font-size: 1rem; /* Slightly larger font */
+    color: var(--text-secondary); /* Muted color */
+    text-align: center;
 }
 
 #results p span {

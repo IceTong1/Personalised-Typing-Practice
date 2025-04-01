@@ -8,17 +8,19 @@
     </div>
 
     <%# Container for the current line being typed %>
-    <%# Pass text ID and progress index to the JavaScript via data attributes %>
-    <div id="current-line-container"
+    <%# Container for the display text - JS still needs data attributes here %>
+    <div id="current-line-container" <%# Re-using this ID for data %>
          data-text-content="<%= text.content %>"
          data-text-id="<%= text.id %>"
          data-progress-index="<%= text.progress_index %>">
+         <%# The visible display box for the target text %>
         <div id="current-line-display">
             <%# Line content will be populated by JavaScript %>
         </div>
     </div>
-    <%# Input area - maybe reduce rows if only showing one line %>
-    <textarea id="typing-input" rows="2" placeholder="Start typing here..."></textarea>
+
+    <%# The visible textarea for user input %>
+    <textarea id="typing-input" rows="3" placeholder="Start typing here..."></textarea>
 
     <div id="results">
         <p>WPM: <span id="wpm">0</span></p>

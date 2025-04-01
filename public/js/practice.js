@@ -355,8 +355,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCompletionPercentage(); // Update completion based on currentOverallCharIndex
 
         // --- Advance to Next Line ---
-        // Advance only if the *entire* line input matches the expected line text
-        if (inputLength === currentLineText.length && lineCorrect) {
+        // Check if the input length matches the expected line length
+        if (inputLength === currentLineText.length) {
+            // Now, explicitly check if the final input value *exactly* matches the expected line text
+            const finalInputIsCorrect = (currentInput === currentLineText);
+
+            if (finalInputIsCorrect) {
             console.log(`Display Line ${currentDisplayLineIndex + 1} complete.`);
             totalTypedChars += currentLineText.length; // Add correctly typed chars for WPM
 
@@ -378,7 +382,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }, 300); // Short delay for visual feedback
         }
+    } // <-- Add missing closing brace for the outer if (inputLength === currentLineText.length)
     });
+
+    // --- Focus Handling ---
+    // (Removed click listener on lineDisplay as input is now directly visible and focusable)
 
     // --- Save Progress Function ---
     /**
