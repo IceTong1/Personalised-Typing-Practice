@@ -7,33 +7,38 @@
         <p>Start typing the text below. Errors will be highlighted.</p>
     </div>
 
-    <%# Container for the current line being typed %>
-    <%# Container for the display text - JS still needs data attributes here %>
-    <div id="current-line-container" <%# Re-using this ID for data %>
-         data-text-content="<%= text.content %>"
-         data-text-id="<%= text.id %>"
-         data-progress-index="<%= text.progress_index %>">
-         <%# The visible display box for the target text %>
-        <div id="current-line-display">
-            <%# Line content will be populated by JavaScript %>
+    <%# Wrap text display and input in a Bootstrap card %>
+    <div class="card shadow-sm mb-4"> <%# Added shadow-sm, increased mb-4 %>
+        <div class="card-body p-4"> <%# Increased padding %>
+            <%# Container for the display text - JS still needs data attributes here %>
+            <div id="current-line-container" <%# Re-using this ID for data %>
+                 data-text-content="<%= text.content %>"
+                 data-text-id="<%= text.id %>"
+                 data-progress-index="<%= text.progress_index %>">
+                 <%# The visible display box for the target text - use card-text styling? %>
+                 <%# Using pre for better whitespace handling, adjust styling %>
+                <pre id="current-line-display" class="p-3 bg-body-tertiary rounded mb-3" style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 1.6;"><%# Line content will be populated by JavaScript %></pre>
+            </div>
+
+            <%# The visible textarea for user input - add form-control class %>
+            <textarea id="typing-input" class="form-control" rows="3" placeholder="Start typing here..." style="font-family: 'JetBrains Mono', monospace; font-size: 1.2rem;"></textarea> <%# Adjusted font size %>
         </div>
     </div>
 
-    <%# The visible textarea for user input %>
-    <textarea id="typing-input" rows="3" placeholder="Start typing here..."></textarea>
-
-    <div id="results">
-        <p>WPM: <span id="wpm">0</span></p>
-        <p>Accuracy: <span id="accuracy">100</span>%</p>
-        <p>Errors: <span id="errors">0</span></p>
-        <p>Time: <span id="timer">0</span>s</p>
-        <p>Completion: <span id="completion">0</span>%</p> <%# Added completion percentage display %>
+    <%# Restructure results using Bootstrap grid with border and padding %>
+    <div id="results" class="row text-center my-4 p-3 border rounded bg-body-tertiary"> <%# Added my-4, p-3, border, rounded, bg %>
+        <div class="col-md col-6 mb-2 mb-md-0">WPM<br><strong id="wpm" class="fs-4">0</strong></div> <%# Added line break, fs-4 %>
+        <div class="col-md col-6 mb-2 mb-md-0">Accuracy<br><strong id="accuracy" class="fs-4">100</strong>%</div>
+        <div class="col-md col-6 mb-2 mb-md-0">Errors<br><strong id="errors" class="fs-4">0</strong></div>
+        <div class="col-md col-6 mb-2 mb-md-0">Time<br><strong id="timer" class="fs-4">0</strong>s</div>
+        <div class="col-md col-12">Completion<br><strong id="completion" class="fs-4">0</strong>%</div> <%# Full width on small screens %>
     </div>
 
     <%# Add Bootstrap button group for controls %>
-    <div class="mt-3 d-flex justify-content-center gap-2">
-        <button id="save-button" class="btn btn-success">Save Progress</button>
-        <button id="reset-button" class="btn btn-warning">Reset</button>
+    <%# Control buttons with more spacing %>
+    <div class="mt-4 d-flex justify-content-center gap-3"> <%# Increased mt-4, gap-3 %>
+        <button id="save-button" class="btn btn-success btn-lg"><i class="fas fa-save me-2"></i>Save Progress</button> <%# Added icon, btn-lg %>
+        <button id="reset-button" class="btn btn-warning btn-lg"><i class="fas fa-redo me-2"></i>Reset</button> <%# Added icon, btn-lg %>
     </div>
 
 <% } else { %>

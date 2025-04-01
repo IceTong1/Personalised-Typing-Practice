@@ -2,22 +2,23 @@
 
 <div class="container mt-4">
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <%# Top action bar with breadcrumbs and buttons %>
+    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom"> <%# Added mb-4, pb-3, border-bottom %>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0">
+            <ol class="breadcrumb mb-0 bg-body rounded-pill px-3 py-1"> <%# Style breadcrumb background %>
                 <li class="breadcrumb-item"><a href="/texts"><i class="fas fa-home"></i> Root</a></li>
                 <%# TODO: Add breadcrumb items from controller %>
                 <% if (currentCategoryId) { %>
                     <%# Placeholder for current folder name - requires fetching details %>
-                    <li class="breadcrumb-item active" aria-current="page">Current Folder</li>
+                    <li class="breadcrumb-item active" aria-current="page">Current Folder</li> <%# Needs actual folder name %>
                 <% } %>
             </ol>
         </nav>
-        <div>
-            <button type="button" class="btn btn-sm btn-success me-2" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+        <div class="d-flex gap-2"> <%# Use gap for button spacing %>
+            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#createFolderModal">
                 <i class="fas fa-folder-plus"></i> Create Folder
             </button>
-            <a href="/add_text" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Add New Text</a>
+            <a href="/add_text?parent_category_id=<%= currentCategoryId || 'root' %>" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Add New Text</a> <%# Pass current category to add text %>
         </div>
     </div>
 
@@ -30,73 +31,84 @@
 
         <!-- Create Folder Button (triggers modal) is now in the header section -->
     <!-- Folders List -->
+    <%# Folders Section - Wrapped in a Card %>
     <% if (categories && categories.length > 0) { %>
-        <h4 class="mb-2">Folders</h4>
-        <div class="list-group mb-4">
-            <% categories.forEach(category => { %>
-                <div class="list-group-item d-flex justify-content-between align-items-center">
-                    <a href="/texts?category_id=<%= category.id %>" class="text-decoration-none flex-grow-1">
-                        <i class="fas fa-folder me-2"></i><%= category.name %>
-                    </a>
-                    <div class="folder-actions">
-                        <!-- Rename Form (Inline for simplicity, could be modal) -->
-                        <form action="/categories/<%= category.id %>/rename" method="POST" class="d-inline-block me-1" onsubmit="return handleRename(this);">
-                            <input type="hidden" name="new_name" value="<%= category.name %>"> <%# Pre-fill for prompt %>
-                            <button type="submit" class="btn btn-sm btn-outline-warning"><i class="fas fa-edit"></i></button>
-                        </form>
-                        <!-- Delete Form -->
-                        <form action="/categories/<%= category.id %>/delete" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this folder? Only empty folders can be deleted.');">
-                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-                        </form>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-body-secondary"> <%# Card header for title %>
+                 <h4 class="mb-0"><i class="fas fa-folder-open me-2"></i>Folders</h4>
+            </div>
+            <div class="list-group list-group-flush"> <%# Flush list group inside card %>
+                <% categories.forEach(category => { %>
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <a href="/texts?category_id=<%= category.id %>" class="text-decoration-none flex-grow-1 me-3"> <%# Added margin %>
+                            <i class="fas fa-folder me-2 text-warning"></i><%= category.name %> <%# Added text-warning %>
+                        </a>
+                        <div class="folder-actions d-flex gap-1"> <%# Use flex gap %>
+                            <%# Rename Form (Inline for simplicity, could be modal) %>
+                            <form action="/categories/<%= category.id %>/rename" method="POST" class="d-inline-block" onsubmit="return handleRename(this);">
+                                <input type="hidden" name="new_name" value="<%= category.name %>"> <%# Pre-fill for prompt %>
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Rename"><i class="fas fa-edit"></i></button>
+                            </form>
+                            <%# Delete Form %>
+                            <form action="/categories/<%= category.id %>/delete" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this folder? Only empty folders can be deleted.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            <% }); %>
+                <% }); %>
+            </div>
         </div>
     <% } %>
 
     <!-- Texts List -->
-    <h4 class="mb-2">Texts</h4>
-    <% if (texts && texts.length > 0) { %>
-        <div id="text-list" class="list-group">
-            <% texts.forEach(text => { %>
-                <%
-                    let percentage = 0;
-                    if (text.content_length && text.content_length > 0) {
-                        percentage = Math.round((text.progress_index / text.content_length) * 100);
-                    } else if (text.progress_index === 0 && text.content_length === 0) {
-                        percentage = 100;
-                    }
-                    percentage = Math.min(percentage, 100);
-                %>
-                <div class="list-group-item d-flex justify-content-between align-items-center" data-id="<%= text.id %>">
-                    <span class="flex-grow-1">
-                         <i class="fas fa-file-alt me-2 text-muted"></i>
-                        <%= text.title %>
-                        <small class="text-muted ms-2">(<%= percentage %>%)</small>
-                    </span>
-                    <div class="actions d-flex align-items-center">
-                        <!-- Bootstrap Dropdown for Move -->
-                        <%# Move dropdown removed %>
-
-                        <!-- Other Action Buttons -->
-                        <a href="/practice/<%= text.id %>" class="btn btn-sm btn-info practice-btn me-1" title="Practice"><i class="fas fa-keyboard"></i></a>
-                        <a href="/edit_text/<%= text.id %>" class="btn btn-sm btn-warning edit-btn me-1" title="Edit"><i class="fas fa-edit"></i></a>
-                        <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this text?');">
-                            <button type="submit" class="btn btn-sm btn-danger delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
-                        </form>
-                    </div>
-                </div>
-            <% }); %>
+    <%# Texts Section - Wrapped in a Card %>
+    <div class="card shadow-sm">
+        <div class="card-header bg-body-secondary"> <%# Card header for title %>
+            <h4 class="mb-0"><i class="fas fa-file-alt me-2"></i>Texts</h4>
         </div>
-    <% } else { %>
-         <p class="text-center text-body-secondary mt-3">
-            <% if (categories && categories.length > 0) { %>
-                No texts in this folder.
-            <% } else { %>
-                 This folder is empty. Add texts or create subfolders.
-            <% } %>
-         </p>
-    <% } %>
+        <% if (texts && texts.length > 0) { %>
+            <div id="text-list" class="list-group list-group-flush"> <%# Flush list group %>
+                <% texts.forEach(text => { %>
+                    <%
+                        let percentage = 0;
+                        if (text.content_length && text.content_length > 0) {
+                            percentage = Math.round((text.progress_index / text.content_length) * 100);
+                        } else if (text.progress_index === 0 && text.content_length === 0) {
+                            percentage = 100; // Consider 0-length text as 100% complete
+                        }
+                        percentage = Math.min(percentage, 100); // Cap at 100%
+                    %>
+                    <div class="list-group-item d-flex justify-content-between align-items-center" data-id="<%= text.id %>">
+                        <span class="flex-grow-1 me-3"> <%# Added margin %>
+                             <i class="fas fa-file-alt me-2 text-secondary"></i> <%# Changed text-muted to text-secondary %>
+                            <%= text.title %>
+                            <small class="text-body-secondary ms-2">(<%= percentage %>%)</small> <%# Changed text-muted %>
+                        </span>
+                        <div class="actions d-flex align-items-center gap-1"> <%# Use flex gap %>
+                            <%# Other Action Buttons %>
+                            <a href="/practice/<%= text.id %>" class="btn btn-sm btn-outline-info practice-btn" title="Practice"><i class="fas fa-keyboard"></i></a>
+                            <a href="/edit_text/<%= text.id %>" class="btn btn-sm btn-outline-warning edit-btn" title="Edit"><i class="fas fa-edit"></i></a>
+                            <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this text?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <div class="card-body text-center text-body-secondary"> <%# Use card-body for padding %>
+                <p class="mb-0">
+                    <% if (currentCategoryId) { %>
+                        No texts in this folder.
+                    <% } else if (categories && categories.length > 0) { %>
+                        No texts in the root folder.
+                    <% } else { %>
+                         This folder is empty. Add texts or create subfolders using the buttons above.
+                    <% } %>
+                 </p>
+            </div>
+        <% } %>
+    </div>
 
      <% if (!texts || texts.length === 0 && (!categories || categories.length === 0)) { %>
          <p class="text-center text-body-secondary mt-4">This folder is empty. <a href="/add_text">Add a text</a> or create a new folder above.</p>

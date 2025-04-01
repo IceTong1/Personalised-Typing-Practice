@@ -1,48 +1,61 @@
 <%- include('partials/header', { user: user }) %>
 
-<h2 class="mb-4">Edit Text</h2>
+<div class="row justify-content-center">
+    <div class="col-md-8"> <%# Wider column for this form %>
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Edit Text</h2>
 
-<% if (typeof error !== 'undefined' && error) { %>
-     <div class="alert alert-danger" role="alert">
-        <%= error %>
-    </div>
-<% } %>
-
-<% if (text) { %>
-    <form action="/edit_text/<%= text.id %>" method="POST">
-        <div class="mb-3"> <%# Use Bootstrap margin class %>
-            <label for="title" class="form-label">Title:</label> <%# Add form-label class %>
-            <input type="text" class="form-control" id="title" name="title" required value="<%= text.title %>"> <%# Add form-control class %>
-        </div>
-        <div class="mb-3"> <%# Use Bootstrap margin class %>
-            <label for="content" class="form-label">Text Content:</label> <%# Add form-label class %>
-            <textarea class="form-control" id="content" name="content" required rows="10"><%= text.content %></textarea> <%# Add form-control class %>
-        </div>
-
-        <div class="mb-3"> <%# Added folder selection %>
-            <label for="category_id" class="form-label">Save to Folder:</label>
-            <select class="form-select" id="category_id" name="category_id">
-                <option value="root" <%= (!text.category_id) ? 'selected' : '' %>>-- Root --</option> <%# Select root if no category %>
-                <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
-                    <% categories.forEach(category => { %>
-                        <option value="<%= category.id %>" <%= (text.category_id && text.category_id == category.id) ? 'selected' : '' %>> <%# Select current category %>
-                            <%# Add indentation based on level for visual hierarchy %>
-                            <% for(let i = 0; i < category.level; i++) { %>&nbsp;&nbsp;&nbsp;<% } %>
-                            <%= category.path_name %> <%# Display full path name %>
-                        </option>
-                    <% }); %>
+                <% if (typeof error !== 'undefined' && error) { %>
+                    <div class="alert alert-danger" role="alert">
+                        <%= error %>
+                    </div>
                 <% } %>
-            </select>
+
+                <% if (text) { %>
+                    <form action="/edit_text/<%= text.id %>" method="POST">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title:</label>
+                            <input type="text" class="form-control" id="title" name="title" required value="<%= text.title %>">
+                        </div>
+                        <div class="mb-3">
+                            <label for="content" class="form-label">Text Content:</label>
+                            <textarea class="form-control" id="content" name="content" required rows="10"><%= text.content %></textarea>
+                        </div>
+
+                        <hr class="my-4"> <%# Visual separator %>
+
+                        <div class="mb-3">
+                            <label for="category_id" class="form-label">Save to Folder:</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="root" <%= (!text.category_id) ? 'selected' : '' %>>-- Root --</option>
+                                <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
+                                    <% categories.forEach(category => { %>
+                                        <option value="<%= category.id %>" <%= (text.category_id && text.category_id == category.id) ? 'selected' : '' %>>
+                                            <% for(let i = 0; i < category.level; i++) { %>&nbsp;&nbsp;&nbsp;<% } %>
+                                            <%= category.path_name %>
+                                        </option>
+                                    <% }); %>
+                                <% } %>
+                            </select>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4"> <%# Button alignment %>
+                            <a href="/texts" class="btn btn-outline-secondary">Cancel</a> <%# Changed back link %>
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Update Text</button>
+                        </div>
+                    </form>
+                <% } else { %>
+                    <div class="alert alert-warning text-center" role="alert">
+                        Text not found or you do not have permission to edit it.
+                    </div>
+                     <div class="text-center mt-3">
+                         <a href="/texts" class="btn btn-secondary btn-sm">Back to My Texts</a>
+                     </div>
+                <% } %>
+            </div>
         </div>
-
-        <button type="submit" class="btn btn-primary">Update Text</button>
-    </form>
-<% } else { %>
-    <div class="alert alert-warning" role="alert">
-        Text not found or you do not have permission to edit it.
     </div>
-<% } %>
-
-<p class="mt-4"><a href="/profile" class="btn btn-secondary btn-sm">Back to Profile</a></p>
+</div>
 
 <%- include('partials/footer') %>

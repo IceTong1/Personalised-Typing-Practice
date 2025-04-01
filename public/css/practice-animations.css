@@ -1,0 +1,57 @@
+/* Character Typing Animations from original style.css */
+
+@keyframes char-correct-pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); color: #81c784; } /* Pop effect - Using success color variable value */
+    100% { transform: scale(1); }
+}
+
+@keyframes char-incorrect-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); color: #e57373; } /* Shake effect - Using error color variable value */
+    75% { transform: translateX(3px); color: #e57373; }
+}
+
+/* Apply animations to the temporary effect classes */
+/* Target spans within the specific display box used in practice.ejs */
+#current-line-display span {
+    display: inline-block; /* Needed for transform */
+    transition: color 0.1s ease-out; /* Smooth color transition back */
+    /* Add a small margin to visually separate inline-block spans */
+    margin-right: 1px;
+}
+
+/* Ensure spaces occupy some width when inline-block */
+#current-line-display span.space-char {
+    /* Ensure it still takes up space */
+    min-width: 0.25em; /* Adjust as needed based on font size */
+    /* Remove any styles that make it look like an underscore */
+    border-bottom: none;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.effect-correct {
+    animation: char-correct-pop 0.3s ease-out;
+}
+
+.effect-incorrect {
+    animation: char-incorrect-shake 0.3s ease-in-out;
+}
+
+/* Ensure correct/incorrect colors override base span color during animation */
+.effect-correct {
+    color: #81c784 !important; /* Use success color */
+}
+.effect-incorrect {
+    color: #e57373 !important; /* Use error color */
+}
+
+/* Styles for correct/incorrect state *after* animation */
+.correct {
+    color: #81c784; /* Use success color */
+}
+
+.incorrect {
+    color: #e57373; /* Use error color */
+}

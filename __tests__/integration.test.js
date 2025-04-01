@@ -112,7 +112,7 @@ describe('Integration Tests', () => {
             expect(profileRes.statusCode).toEqual(200);
             // Updated assertion to match actual profile content
             expect(profileRes.text).toContain('<h2>Profile</h2>');
-            expect(profileRes.text).toContain('<h3>Your Statistics</h3>');
+            expect(profileRes.text).toContain('<h3 class="card-title">Your Statistics</h3>'); // Updated to match card title class
             expect(db.get_texts).not.toHaveBeenCalled(); // Profile no longer fetches texts
         });
 
@@ -145,7 +145,7 @@ describe('Integration Tests', () => {
             expect(profileRes.statusCode).toEqual(200);
              // Updated assertion to match actual profile content
             expect(profileRes.text).toContain('<h2>Profile</h2>');
-            expect(profileRes.text).toContain('<h3>Your Statistics</h3>');
+            expect(profileRes.text).toContain('<h3 class="card-title">Your Statistics</h3>'); // Updated to match card title class
             expect(db.get_texts).not.toHaveBeenCalled(); // Profile no longer fetches texts
         });
 

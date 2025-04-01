@@ -1,46 +1,61 @@
 <%- include('partials/header', { user: user }) %>
 
-<h2 class="mb-4">Add New Text</h2>
+<div class="row justify-content-center">
+    <div class="col-md-8"> <%# Wider column for this form %>
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="card-title text-center mb-4">Add New Text</h2>
 
-<% if (typeof error !== 'undefined' && error) { %>
-    <div class="alert alert-danger" role="alert">
-        <%= error %>
-    </div>
-<% } %>
+                <% if (typeof error !== 'undefined' && error) { %>
+                    <div class="alert alert-danger" role="alert">
+                        <%= error %>
+                    </div>
+                <% } %>
 
-<%# Add enctype for file uploads %>
-<form action="/add_text" method="POST" enctype="multipart/form-data">
-    <div class="mb-3"> <%# Use Bootstrap margin class %>
-        <label for="title" class="form-label">Title:</label> <%# Add form-label class %>
-        <input type="text" class="form-control" id="title" name="title" required value="<%= typeof title !== 'undefined' ? title : '' %>"> <%# Add form-control class %>
-    </div>
-    <div class="mb-3"> <%# Use Bootstrap margin class %>
-        <label for="content" class="form-label">Text Content (or leave blank if uploading PDF):</label> <%# Add form-label class %>
-        <textarea class="form-control" id="content" name="content" rows="6"><%= typeof content !== 'undefined' ? content : '' %></textarea> <%# Add form-control class %>
-    </div>
-    <div class="mb-3"> <%# Use Bootstrap margin class %>
-        <label for="pdfFile" class="form-label">Or Upload PDF:</label> <%# Add form-label class %>
-        <input type="file" class="form-control" id="pdfFile" name="pdfFile" accept=".pdf"> <%# Add form-control class %>
-    </div>
+                <%# Add enctype for file uploads %>
+                <form action="/add_text" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title:</label>
+                        <input type="text" class="form-control" id="title" name="title" required value="<%= typeof title !== 'undefined' ? title : '' %>">
+                    </div>
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Text Content:</label>
+                        <textarea class="form-control" id="content" name="content" rows="6" placeholder="Paste your text here..."><%= typeof content !== 'undefined' ? content : '' %></textarea>
+                    </div>
 
-    <div class="mb-3">
-        <label for="category_id" class="form-label">Save to Folder:</label>
-        <select class="form-select" id="category_id" name="category_id">
-            <option value="root">-- Root --</option> <%# Explicitly use 'root' as value %>
-            <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
-                <% categories.forEach(category => { %>
-                    <option value="<%= category.id %>">
-                        <%# Add indentation based on level for visual hierarchy %>
-                        <% for(let i = 0; i < category.level; i++) { %>&nbsp;&nbsp;&nbsp;<% } %>
-                        <%= category.path_name %> <%# Display full path name %>
-                    </option>
-                <% }); %>
-            <% } %>
-        </select>
-    </div>
-    <button type="submit" class="btn btn-primary">Add Text</button> <%# Add btn classes %>
-</form>
+                    <div class="text-center my-3 text-body-secondary">OR</div>
 
-<p class="mt-4"><a href="/texts" class="btn btn-secondary btn-sm">Cancel (Back to Texts)</a></p> <%# Change link to /texts %>
+                    <div class="mb-3">
+                        <label for="pdfFile" class="form-label">Upload PDF:</label>
+                        <input type="file" class="form-control" id="pdfFile" name="pdfFile" accept=".pdf">
+                        <div class="form-text">Leave text content blank if uploading a PDF.</div>
+                    </div>
+
+                    <hr class="my-4"> <%# Visual separator %>
+
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label">Save to Folder:</label>
+                        <select class="form-select" id="category_id" name="category_id">
+                            <option value="root">-- Root --</option>
+                            <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
+                                <% categories.forEach(category => { %>
+                                    <option value="<%= category.id %>">
+                                        <% for(let i = 0; i < category.level; i++) { %>&nbsp;&nbsp;&nbsp;<% } %>
+                                        <%= category.path_name %>
+                                    </option>
+                                <% }); %>
+                            <% } %>
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4"> <%# Button alignment %>
+                         <a href="/texts" class="btn btn-outline-secondary">Cancel</a>
+                         <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Text</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <%- include('partials/footer') %>
