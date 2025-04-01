@@ -28,10 +28,12 @@ db.exec(`
         category_id INTEGER,                  -- Foreign key linking to the category it belongs to (NULL if root)
         title TEXT NOT NULL,                  -- Title of the text, cannot be null
         content TEXT NOT NULL,                -- The actual text content for typing practice
+        order_index INTEGER NOT NULL DEFAULT 0, -- Display order for the user's list
         FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE, -- If user deleted, delete text
         FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE SET NULL -- If category deleted, move text to root
     );
-`);
+`); // Close the template literal and db.exec call
+
 
 // Create the 'user_text_progress' table to store user progress on specific texts
 db.exec(`
@@ -44,6 +46,7 @@ db.exec(`
         FOREIGN KEY(text_id) REFERENCES texts(id) ON DELETE CASCADE  -- Delete progress if text is deleted
     );
 `);
+
 
 // Create the 'categories' table for organizing texts
 db.exec(`
@@ -61,6 +64,23 @@ db.exec(`
 
 // Removed 'files' table definition.
 
+
+// --- Schema Migration: Add order_index to texts if it doesn't exist ---
+// This should run after all initial table creations are defined.
+try {
+    // Check if the column already exists
+    const columns = db.pragma('table_info(texts)');
+    const hasOrderIndex = columns.some(col => col.name === 'order_index');
+
+    if (!hasOrderIndex) {
+        // Add the column if it doesn't exist
+        db.exec(`ALTER TABLE texts ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0;`);
+        console.log("Successfully added 'order_index' column to 'texts' table.");
+    }
+} catch (err) {
+    // Log error if PRAGMA or ALTER fails, but don't necessarily stop the app
+    console.error("Error checking/adding 'order_index' column:", err);
+}
 
 console.log('Database tables checked/created successfully.');
 
@@ -153,7 +173,7 @@ function get_texts(user_id) {
         FROM texts t
         LEFT JOIN user_text_progress utp ON t.id = utp.text_id AND utp.user_id = ?
         WHERE t.user_id = ?
-        ORDER BY t.title
+        ORDER BY t.order_index ASC, t.id ASC -- Order by custom index, then ID for stability
     `);
     // Execute with user_id for the JOIN condition and the WHERE clause
     return stmt.all(user_id, user_id);
@@ -191,13 +211,18 @@ function get_text(text_id, user_id) {
  * @returns {number} - The ID of the newly added text, or -1 on error.
  */
 function add_text(user_id, title, content) {
-    // Prepare statement to insert a new text record
-    const stmt = db.prepare('INSERT INTO texts (user_id, title, content) VALUES (?, ?, ?)');
+    // Determine the next order_index for this user
+    const orderStmt = db.prepare('SELECT MAX(order_index) as max_index FROM texts WHERE user_id = ?');
+    const result = orderStmt.get(user_id);
+    const next_index = (result && result.max_index !== null) ? result.max_index + 1 : 0;
+
+    // Prepare statement to insert a new text record including the order_index
+    const insertStmt = db.prepare('INSERT INTO texts (user_id, title, content, order_index) VALUES (?, ?, ?, ?)');
     try {
         // Execute the insert statement
-        const info = stmt.run(user_id, title, content);
+        const info = insertStmt.run(user_id, title, content, next_index);
         // Return the ID of the newly inserted row
-        console.log(`Text added to DB: ID ${info.lastInsertRowid}, User ${user_id}`);
+        console.log(`Text added to DB: ID ${info.lastInsertRowid}, User ${user_id}, OrderIndex ${next_index}`);
         return info.lastInsertRowid;
     } catch (err) {
         // Log errors during insertion
@@ -276,6 +301,35 @@ function save_progress(user_id, text_id, progress_index) {
     }
 }
 
+/**
+ * Updates the order_index for multiple texts belonging to a user within a transaction.
+ * @param {number} user_id - The ID of the user whose text order is being updated.
+ * @param {Array<number>} order - An array of text IDs in the desired order.
+ * @returns {boolean} - True if the transaction was successful, false otherwise.
+ */
+const update_text_order = db.transaction((user_id, order) => {
+    // Prepare the update statement once
+    const stmt = db.prepare('UPDATE texts SET order_index = ? WHERE id = ? AND user_id = ?');
+    let changes = 0;
+    // Loop through the provided order array
+    for (let i = 0; i < order.length; i++) {
+        const text_id = order[i];
+        // Execute the update for each text ID with its new index (i)
+        // Ensure text_id is treated as a number
+        const info = stmt.run(i, Number(text_id), user_id);
+        changes += info.changes;
+    }
+    // Optional: Check if the number of changes matches the order length for verification
+    if (changes !== order.length) {
+        console.warn(`Update text order warning: Expected ${order.length} changes, but got ${changes} for user ${user_id}. Some text IDs might not belong to the user or might not exist.`);
+        // Decide if this should be an error or just a warning. For robustness, let's allow partial updates.
+    }
+    // The transaction automatically commits if no exceptions are thrown.
+    // If an exception occurs, the transaction automatically rolls back.
+    // We need to explicitly return true on success from the transaction function for the controller.
+    return true; // Indicate success
+});
+
 
 // --- Exports ---
 // Make the database functions available for other modules (like controllers) to import
@@ -290,6 +344,7 @@ module.exports = {
     update_text,
     delete_text,
     save_progress,
+    update_text_order, // Export the new function
 
     // --- Category Functions ---
 

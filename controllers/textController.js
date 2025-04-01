@@ -36,7 +36,8 @@ router.get('/profile', requireLogin, (req, res) => {
         // Get user ID from the session
         const userId = req.session.user.id;
         // Fetch the list of texts (id and title) for this user from the database
-        const texts = db.get_texts(userId); // Use original get_texts without category filter
+        // Fetch texts, now sorted by order_index (modification needed in db.js)
+        const texts = db.get_texts(userId);
         console.log(`Fetching profile for user ID: ${userId}, Texts found: ${texts.length}`);
         // Render the 'profile.ejs' view
         res.render('profile', {
@@ -494,6 +495,38 @@ router.post('/save_progress', requireLogin, (req, res) => {
     } catch (error) {
         console.error(`Unexpected error saving progress: User ${user_id}, Text ${textIdNum}:`, error);
         res.status(500).json({ success: false, message: 'Server error saving progress.' });
+    }
+});
+
+/**
+ * Route: POST /update_text_order
+ * Description: Updates the display order of texts for the logged-in user.
+ *              Expects an 'order' array in the request body containing text IDs.
+ * Middleware: Requires the user to be logged in (`requireLogin`).
+ */
+router.post('/update_text_order', requireLogin, (req, res) => {
+    const { order } = req.body; // Array of text IDs in the new order
+    const userId = req.session.user.id;
+
+    // Basic validation
+    if (!Array.isArray(order)) {
+        console.error(`Update text order failed: 'order' is not an array. User ID: ${userId}, Body:`, req.body);
+        return res.status(400).json({ success: false, message: 'Invalid data format.' });
+    }
+
+    try {
+        // Call the database function to update the order
+        const success = db.update_text_order(userId, order);
+        if (success) {
+            console.log(`Text order updated for user ID: ${userId}`);
+            res.status(200).json({ success: true, message: 'Order updated successfully.' });
+        } else {
+            console.error(`Update text order DB error for user ID: ${userId}`);
+            res.status(500).json({ success: false, message: 'Database error updating order.' });
+        }
+    } catch (error) {
+        console.error(`Unexpected error updating text order for user ID: ${userId}:`, error);
+        res.status(500).json({ success: false, message: 'Server error updating order.' });
     }
 });
 
