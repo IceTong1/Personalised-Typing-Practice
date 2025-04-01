@@ -372,15 +372,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             typingInput.disabled = true; // Disable input during transition
 
+            // 1. Start fade-out animation for the line display
+            lineDisplay.classList.add('line-fade-out');
+            // 1b. Start clear animation for the input field
+            typingInput.classList.add('input-clearing');
+
+            // 2. Wait for the LONGER animation (fade-out) to mostly finish
             setTimeout(() => {
-                currentDisplayLineIndex = nextLineIndex; // Update index inside timeout
-                renderLine(currentDisplayLineIndex); // Render the next line
-                // Re-enable input only if the text is not complete
+                // 3. Remove animation classes
+                lineDisplay.classList.remove('line-fade-out');
+                typingInput.classList.remove('input-clearing'); // Remove class after animation duration
+
+                // 4. Update state and render the new line content
+                // Note: renderLine already clears the input value (typingInput.value = '')
+                currentDisplayLineIndex = nextLineIndex;
+                renderLine(currentDisplayLineIndex);
+
+                // 5. Add fade-in class to the newly rendered line
+                lineDisplay.classList.add('line-fade-in');
+
+                // 6. Clean up fade-in class after animation completes
+                lineDisplay.addEventListener('animationend', () => {
+                    lineDisplay.classList.remove('line-fade-in');
+                }, { once: true });
+
+                // 7. Re-enable input only if the text is not complete
                 if (currentDisplayLineIndex < lines.length) {
                     typingInput.disabled = false;
                     typingInput.focus();
                 }
-            }, 300); // Short delay for visual feedback
+            }, 300); // Duration MUST match the fade-out animation time
         }
     } // <-- Add missing closing brace for the outer if (inputLength === currentLineText.length)
     });
