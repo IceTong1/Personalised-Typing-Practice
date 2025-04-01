@@ -9,6 +9,65 @@ const { execFileSync } = require('child_process'); // For running external comma
 const fs = require('fs'); // File system module for writing/deleting temporary files
 const tmp = require('tmp'); // Library for creating temporary file paths
 
+// --- Helper Functions ---
+
+/**
+ * Cleans text extracted from PDFs or submitted via textarea.
+ * Handles common accent issues from pdftotext and normalizes Unicode.
+ * @param {string | null | undefined} inputText The text to clean.
+ * @returns {string} The cleaned and normalized text.
+ */
+const cleanupText = (inputText) => {
+    if (!inputText) return ''; // Handle null/undefined input gracefully
+
+    const acute = /[\u00B4\u0301]/;
+    const grave = /[`\u0300]/;
+    const circumflex = /[\u005E\u0302]/;
+    const cedilla = /[\u00B8\u0327]/;
+    const diaeresis = /[\u00A8\u0308]/;
+
+    let cleaned = inputText;
+
+    // Pass 1: Fix Accent OptionalSpace Letter -> Precomposed
+    cleaned = cleaned
+        .replace(new RegExp(acute.source + '\\s*e', 'gi'), 'é')
+        .replace(new RegExp(grave.source + '\\s*a', 'gi'), 'à')
+        .replace(new RegExp(grave.source + '\\s*e', 'gi'), 'è')
+        .replace(new RegExp(grave.source + '\\s*u', 'gi'), 'ù')
+        .replace(new RegExp(circumflex.source + '\\s*a', 'gi'), 'â')
+        .replace(new RegExp(circumflex.source + '\\s*e', 'gi'), 'ê')
+        .replace(new RegExp(circumflex.source + '\\s*i', 'gi'), 'î')
+        .replace(new RegExp(circumflex.source + '\\s*o', 'gi'), 'ô')
+        .replace(new RegExp(circumflex.source + '\\s*u', 'gi'), 'û')
+        .replace(new RegExp(cedilla.source + '\\s*c', 'gi'), 'ç')
+        .replace(new RegExp(diaeresis.source + '\\s*e', 'gi'), 'ë')
+        .replace(new RegExp(diaeresis.source + '\\s*i', 'gi'), 'ï')
+        .replace(new RegExp(diaeresis.source + '\\s*u', 'gi'), 'ü');
+
+    // Pass 2: Fix Letter OptionalSpace Accent -> Precomposed
+    cleaned = cleaned
+        .replace(new RegExp('a\\s*' + grave.source, 'gi'), 'à')
+        .replace(new RegExp('a\\s*' + circumflex.source, 'gi'), 'â')
+        .replace(new RegExp('c\\s*' + cedilla.source, 'gi'), 'ç')
+        .replace(new RegExp('e\\s*' + acute.source, 'gi'), 'é')
+        .replace(new RegExp('e\\s*' + grave.source, 'gi'), 'è')
+        .replace(new RegExp('e\\s*' + circumflex.source, 'gi'), 'ê')
+        .replace(new RegExp('e\\s*' + diaeresis.source, 'gi'), 'ë')
+        .replace(new RegExp('i\\s*' + circumflex.source, 'gi'), 'î')
+        .replace(new RegExp('i\\s*' + diaeresis.source, 'gi'), 'ï')
+        .replace(new RegExp('o\\s*' + circumflex.source, 'gi'), 'ô')
+        .replace(new RegExp('u\\s*' + grave.source, 'gi'), 'ù')
+        .replace(new RegExp('u\\s*' + circumflex.source, 'gi'), 'û')
+        .replace(new RegExp('u\\s*' + diaeresis.source, 'gi'), 'ü');
+
+    // Replace typographic apostrophe with standard apostrophe
+    cleaned = cleaned.replace(/’/g, "'");
+
+    // Final Unicode normalization (NFC form)
+    const normalizedText = cleaned.normalize('NFC');
+    return normalizedText;
+};
+
 // --- Multer Configuration for PDF Uploads ---
 // Configure where and how uploaded files are stored
 const storage = multer.memoryStorage(); // Store the uploaded file as a Buffer in memory
@@ -211,72 +270,20 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
 
                 // 3. Execute the 'pdftotext' command-line tool
                 let extractedText = execFileSync('pdftotext', ['-enc', 'UTF-8', tempFilePath, '-'], { encoding: 'utf8' }).trim();
-                console.log(`Extracted ${extractedText.length} characters using pdftotext (requested UTF-8 output).`);
+                console.log(`Extracted ${extractedText.length} characters using pdftotext.`);
 
-                // --- Text Cleanup (Handling pdftotext inconsistencies) ---
-                const acute = /[\u00B4\u0301]/;
-                const grave = /[`\u0300]/;
-                const circumflex = /[\u005E\u0302]/;
-                const cedilla = /[\u00B8\u0327]/;
-                const diaeresis = /[\u00A8\u0308]/;
+                // Assign raw extracted text to textToSave. Cleanup happens later.
+                textToSave = extractedText;
 
-                let cleanedText = extractedText;
-                console.log(`Initial length: ${cleanedText.length}`);
-
-                // Pass 1: Fix Accent OptionalSpace Letter -> Precomposed
-                cleanedText = cleanedText
-                    .replace(new RegExp(acute.source + '\\s*e', 'gi'), 'é')
-                    .replace(new RegExp(grave.source + '\\s*a', 'gi'), 'à')
-                    .replace(new RegExp(grave.source + '\\s*e', 'gi'), 'è')
-                    .replace(new RegExp(grave.source + '\\s*u', 'gi'), 'ù')
-                    .replace(new RegExp(circumflex.source + '\\s*a', 'gi'), 'â')
-                    .replace(new RegExp(circumflex.source + '\\s*e', 'gi'), 'ê')
-                    .replace(new RegExp(circumflex.source + '\\s*i', 'gi'), 'î')
-                    .replace(new RegExp(circumflex.source + '\\s*o', 'gi'), 'ô')
-                    .replace(new RegExp(circumflex.source + '\\s*u', 'gi'), 'û')
-                    .replace(new RegExp(cedilla.source + '\\s*c', 'gi'), 'ç')
-                    .replace(new RegExp(diaeresis.source + '\\s*e', 'gi'), 'ë')
-                    .replace(new RegExp(diaeresis.source + '\\s*i', 'gi'), 'ï')
-                    .replace(new RegExp(diaeresis.source + '\\s*u', 'gi'), 'ü');
-                console.log(`Length after Pass 1 (Accent Letter): ${cleanedText.length}`);
-
-                // Pass 2: Fix Letter OptionalSpace Accent -> Precomposed
-                cleanedText = cleanedText
-                    .replace(new RegExp('a\\s*' + grave.source, 'gi'), 'à')
-                    .replace(new RegExp('a\\s*' + circumflex.source, 'gi'), 'â')
-                    .replace(new RegExp('c\\s*' + cedilla.source, 'gi'), 'ç')
-                    .replace(new RegExp('e\\s*' + acute.source, 'gi'), 'é')
-                    .replace(new RegExp('e\\s*' + grave.source, 'gi'), 'è')
-                    .replace(new RegExp('e\\s*' + circumflex.source, 'gi'), 'ê')
-                    .replace(new RegExp('e\\s*' + diaeresis.source, 'gi'), 'ë')
-                    .replace(new RegExp('i\\s*' + circumflex.source, 'gi'), 'î')
-                    .replace(new RegExp('i\\s*' + diaeresis.source, 'gi'), 'ï')
-                    .replace(new RegExp('o\\s*' + circumflex.source, 'gi'), 'ô')
-                    .replace(new RegExp('u\\s*' + grave.source, 'gi'), 'ù')
-                    .replace(new RegExp('u\\s*' + circumflex.source, 'gi'), 'û')
-                    .replace(new RegExp('u\\s*' + diaeresis.source, 'gi'), 'ü');
-                console.log(`Length after Pass 2 (Letter Accent): ${cleanedText.length}`);
-
-                // Replace typographic apostrophe with standard apostrophe
-                cleanedText = cleanedText.replace(/’/g, "'");
-                console.log(`Length after apostrophe replacement: ${cleanedText.length}`);
-
-                // Final Unicode normalization (NFC form)
-                textToSave = cleanedText.normalize('NFC');
-                console.log(`Length after final NFC normalization: ${textToSave.length}`);
-                // NOTE: The actual cleanup is now done *after* this block, applied to all text sources.
-                // We still need to check if extraction yielded *anything* though.
-                // --- End Text Cleanup (within PDF block) ---
-
-                // Check if text extraction resulted in empty content
-                if (!textToSave) { // textToSave here is the raw extracted text before common cleanup
+                // Check if raw extraction resulted in empty content *before* cleanup
+                if (!textToSave) {
                     renderArgs.error = 'Could not extract text using pdftotext. PDF might be empty or image-based.';
                     // Cleanup temp file before returning error
                     if (tempFilePath) fs.unlinkSync(tempFilePath);
                     return res.render('add_text', renderArgs);
                 }
                 // If extraction was successful, textToSave now holds the raw extracted text,
-                // which will be passed to the common cleanup function later.
+                // which will be passed to the common cleanupText function later.
 
             } catch (execError) {
                 // Handle errors during pdftotext execution
@@ -305,64 +312,7 @@ router.post('/add_text', requireLogin, upload.single('pdfFile'), async (req, res
             }
         } // End if(uploadedFile)
 
-        // --- Apply Common Text Cleanup ---
-        // Define cleanup function (could be moved outside the route handler for better organization)
-        const cleanupText = (inputText) => {
-            if (!inputText) return ''; // Handle null/undefined input gracefully
-
-            const acute = /[\u00B4\u0301]/;
-            const grave = /[`\u0300]/;
-            const circumflex = /[\u005E\u0302]/;
-            const cedilla = /[\u00B8\u0327]/;
-            const diaeresis = /[\u00A8\u0308]/;
-
-            let cleaned = inputText;
-            // console.log(`Cleanup - Initial length: ${cleaned.length}`); // Reduce console noise
-
-            // Pass 1: Fix Accent OptionalSpace Letter -> Precomposed
-            cleaned = cleaned
-                .replace(new RegExp(acute.source + '\\s*e', 'gi'), 'é')
-                .replace(new RegExp(grave.source + '\\s*a', 'gi'), 'à')
-                .replace(new RegExp(grave.source + '\\s*e', 'gi'), 'è')
-                .replace(new RegExp(grave.source + '\\s*u', 'gi'), 'ù')
-                .replace(new RegExp(circumflex.source + '\\s*a', 'gi'), 'â')
-                .replace(new RegExp(circumflex.source + '\\s*e', 'gi'), 'ê')
-                .replace(new RegExp(circumflex.source + '\\s*i', 'gi'), 'î')
-                .replace(new RegExp(circumflex.source + '\\s*o', 'gi'), 'ô')
-                .replace(new RegExp(circumflex.source + '\\s*u', 'gi'), 'û')
-                .replace(new RegExp(cedilla.source + '\\s*c', 'gi'), 'ç')
-                .replace(new RegExp(diaeresis.source + '\\s*e', 'gi'), 'ë')
-                .replace(new RegExp(diaeresis.source + '\\s*i', 'gi'), 'ï')
-                .replace(new RegExp(diaeresis.source + '\\s*u', 'gi'), 'ü');
-            // console.log(`Cleanup - Length after Pass 1 (Accent Letter): ${cleaned.length}`);
-
-            // Pass 2: Fix Letter OptionalSpace Accent -> Precomposed
-            cleaned = cleaned
-                .replace(new RegExp('a\\s*' + grave.source, 'gi'), 'à')
-                .replace(new RegExp('a\\s*' + circumflex.source, 'gi'), 'â')
-                .replace(new RegExp('c\\s*' + cedilla.source, 'gi'), 'ç')
-                .replace(new RegExp('e\\s*' + acute.source, 'gi'), 'é')
-                .replace(new RegExp('e\\s*' + grave.source, 'gi'), 'è')
-                .replace(new RegExp('e\\s*' + circumflex.source, 'gi'), 'ê')
-                .replace(new RegExp('e\\s*' + diaeresis.source, 'gi'), 'ë')
-                .replace(new RegExp('i\\s*' + circumflex.source, 'gi'), 'î')
-                .replace(new RegExp('i\\s*' + diaeresis.source, 'gi'), 'ï')
-                .replace(new RegExp('o\\s*' + circumflex.source, 'gi'), 'ô')
-                .replace(new RegExp('u\\s*' + grave.source, 'gi'), 'ù')
-                .replace(new RegExp('u\\s*' + circumflex.source, 'gi'), 'û')
-                .replace(new RegExp('u\\s*' + diaeresis.source, 'gi'), 'ü');
-            // console.log(`Cleanup - Length after Pass 2 (Letter Accent): ${cleaned.length}`);
-
-            // Replace typographic apostrophe with standard apostrophe
-            cleaned = cleaned.replace(/’/g, "'");
-            // console.log(`Cleanup - Length after apostrophe replacement: ${cleaned.length}`);
-
-            // Final Unicode normalization (NFC form)
-            const normalizedText = cleaned.normalize('NFC');
-            // console.log(`Cleanup - Length after final NFC normalization: ${normalizedText.length}`);
-            return normalizedText;
-        };
-
+        // --- Apply Common Text Cleanup (using function defined at module level) ---
         // Apply cleanup to the text regardless of source (PDF or textarea)
         // Make sure textToSave is not null/undefined before cleaning
         const finalContentToSave = cleanupText(textToSave || '');
@@ -500,11 +450,13 @@ router.post('/edit_text/:text_id', requireLogin, requireOwnership, (req, res) =>
 
     // --- Update Database ---
     try {
+        // Clean the content before saving
+        const cleanedContent = cleanupText(content);
         // Attempt to update the text in the database, now including category_id
-        const success = db.update_text(textId, title, content, targetCategoryId);
+        const success = db.update_text(textId, title, cleanedContent, targetCategoryId);
         if (success) {
             // Success: Redirect to the folder where the text now resides
-            console.log(`Text updated: ID ${textId}, Title: ${title}, User ID: ${userId}, Category: ${targetCategoryId}`);
+            console.log(`Text updated: ID ${textId}, Title: ${title}, User ID: ${userId}, Category: ${targetCategoryId}, Final Length: ${cleanedContent.length}`);
             let redirectUrl = '/texts?message=Text updated successfully!';
             if (targetCategoryId) {
                 redirectUrl += '&category_id=' + targetCategoryId;

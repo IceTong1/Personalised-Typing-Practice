@@ -78,7 +78,7 @@ describe('Auth Controller', () => {
 
       expect(db.user_exists).not.toHaveBeenCalled();
       expect(db.new_user).not.toHaveBeenCalled();
-      expect(res.render).toHaveBeenCalledWith('register', { error: 'Passwords do not match.', user: null });
+      expect(res.render).toHaveBeenCalledWith('register', { error: 'Passwords do not match.' });
       expect(res.redirect).not.toHaveBeenCalled();
     });
 
@@ -90,7 +90,7 @@ describe('Auth Controller', () => {
 
       expect(db.user_exists).toHaveBeenCalledWith('existingUser');
       expect(db.new_user).not.toHaveBeenCalled();
-      expect(res.render).toHaveBeenCalledWith('register', { error: 'Username already taken.', user: null });
+      expect(res.render).toHaveBeenCalledWith('register', { error: 'Username already taken.' });
       expect(res.redirect).not.toHaveBeenCalled();
     });
 
@@ -101,7 +101,7 @@ describe('Auth Controller', () => {
 
       expect(db.user_exists).not.toHaveBeenCalled(); // Should fail before db check
       expect(db.new_user).not.toHaveBeenCalled();
-      expect(res.render).toHaveBeenCalledWith('register', { error: 'Username and password are required.', user: null });
+      expect(res.render).toHaveBeenCalledWith('register', { error: 'Username and password are required.' });
       expect(res.redirect).not.toHaveBeenCalled();
     });
 
@@ -112,7 +112,7 @@ describe('Auth Controller', () => {
 
       expect(db.user_exists).not.toHaveBeenCalled(); // Should fail before db check
       expect(db.new_user).not.toHaveBeenCalled();
-      expect(res.render).toHaveBeenCalledWith('register', { error: 'Username and password are required.', user: null });
+      expect(res.render).toHaveBeenCalledWith('register', { error: 'Username and password are required.' });
       expect(res.redirect).not.toHaveBeenCalled();
     });
 
@@ -126,7 +126,7 @@ describe('Auth Controller', () => {
 
       expect(db.user_exists).toHaveBeenCalledWith('newUser');
       expect(db.new_user).toHaveBeenCalledWith('newUser', 'password123');
-      expect(res.render).toHaveBeenCalledWith('register', { error: 'Registration failed. Please try again.', user: null });
+      expect(res.render).toHaveBeenCalledWith('register', { error: 'Registration failed. Please try again.' });
       expect(res.redirect).not.toHaveBeenCalled();
     });
   });
@@ -154,7 +154,7 @@ describe('Auth Controller', () => {
       loginHandler(req, res);
 
       expect(db.login).toHaveBeenCalledWith('wrongUser', 'wrongPassword');
-      expect(res.render).toHaveBeenCalledWith('login', { error: 'Invalid username or password.', user: null });
+      expect(res.render).toHaveBeenCalledWith('login', { error: 'Invalid username or password.' });
       expect(res.redirect).not.toHaveBeenCalled();
     });
   });
@@ -198,7 +198,7 @@ describe('Auth Controller', () => {
 
       getLoginHandler(req, res);
 
-      expect(res.render).toHaveBeenCalledWith('login', { error: null, user: null });
+      expect(res.render).toHaveBeenCalledWith('login', { error: null });
       expect(res.redirect).not.toHaveBeenCalled();
     });
 
@@ -221,7 +221,7 @@ describe('Auth Controller', () => {
 
       getRegisterHandler(req, res);
 
-      expect(res.render).toHaveBeenCalledWith('register', { error: null, user: null });
+      expect(res.render).toHaveBeenCalledWith('register', { error: null });
       expect(res.redirect).not.toHaveBeenCalled();
     });
 

@@ -62,9 +62,6 @@ db.exec(`
     );
 `);
 
-// Removed 'files' table definition.
-
-
 // --- Schema Migration: Add order_index to texts if it doesn't exist ---
 // This should run after all initial table creations are defined.
 try {
@@ -493,8 +490,6 @@ is_category_empty: (category_id, user_id) => {
 
     return true; // No texts and no subcategories found, and category exists/is owned
 },
-
-// move_text_to_category function removed
 
 /**
  * Retrieves all categories for a user as a flat list, indicating hierarchy.

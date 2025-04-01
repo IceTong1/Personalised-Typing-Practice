@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const typingInputArea = document.getElementById('typing-input-area'); // New container ID
     const typingInputContent = document.getElementById('typing-input-content');
     const typingCursor = document.getElementById('typing-cursor');
-    // We still need a way to capture input, let's add a hidden input later
     const wpmElement = document.getElementById('wpm');
     const accuracyElement = document.getElementById('accuracy');
     const errorsElement = document.getElementById('errors');
@@ -60,7 +59,24 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalTypedEntries = 0; // All key presses (approx)
     let timerRunning = false;
 
-    // --- Initialization Functions ---
+    // --- Helper & Initialization Functions ---
+
+    /**
+     * Applies a short visual effect (like a flash) to a target span.
+     * @param {HTMLElement} targetSpan - The span element to apply the effect to.
+     * @param {string} effectClass - The CSS class defining the effect (e.g., 'effect-correct').
+     */
+    const applyEffect = (targetSpan, effectClass) => {
+        if (!targetSpan) return;
+        targetSpan.classList.remove('effect-correct', 'effect-incorrect');
+        // Force reflow to restart animation if class is re-added quickly
+        void targetSpan.offsetWidth;
+        targetSpan.classList.add(effectClass);
+        // Use animationend event for cleanup
+        targetSpan.addEventListener('animationend', () => {
+            targetSpan.classList.remove(effectClass);
+        }, { once: true });
+    };
 
     /**
      * Splits the original text into lines suitable for display, applying word wrapping.
@@ -178,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hiddenInput) hiddenInput.value = ''; // Clear hidden input too
         renderCustomInput(''); // Clear visual spans
         updateCursorPosition();
-        // typingInputArea.classList.remove('has-content'); // Not needed without placeholder
 
         // Focus the hidden input to capture keys
         focusHiddenInput();
@@ -314,7 +329,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             typingInputContent.appendChild(span);
         }
-        // typingInputArea.classList.toggle('has-content', text.length > 0); // Not needed without placeholder
         // Update cursor position after rendering
         updateCursorPosition();
     }
@@ -447,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update visual representation
         renderCustomInput(currentInputValue);
         updateCursorPosition();
-        // typingInputArea.classList.toggle('has-content', currentInputValue.length > 0); // Not needed without placeholder
 
         // --- Existing Practice Logic (adapted) ---
         const currentInput = currentInputValue; // Use our internal state
@@ -457,19 +470,6 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentLineErrors = 0; // Errors on the current line attempt
 
         totalTypedEntries++; // Increment for each input event (approximation)
-
-        // Define applyEffect function for visual feedback
-        const applyEffect = (targetSpan, effectClass) => {
-            if (!targetSpan) return;
-            targetSpan.classList.remove('effect-correct', 'effect-incorrect');
-            // Force reflow to restart animation if class is re-added quickly
-            void targetSpan.offsetWidth;
-            targetSpan.classList.add(effectClass);
-            // Use animationend event for cleanup
-            targetSpan.addEventListener('animationend', () => {
-                targetSpan.classList.remove(effectClass);
-            }, { once: true });
-        };
 
         let lastCharCorrect = false;
         let correctLength = 0; // Length of correct prefix in current input
@@ -514,15 +514,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- Update Overall Progress Index (Relative to Display Structure) ---
+        // Calculate the correct index based on the current attempt
         let baseIndex = 0;
         for(let i = 0; i < currentDisplayLineIndex; i++) {
             baseIndex += lines[i].length;
-            if (i < lines.length - 1) { // Add separator length if not the last line
-                baseIndex += 1; // Add 1 for the implicit space separator
-            }
+            if (i < lines.length - 1) { baseIndex += 1; } // Add separator length
         }
-        // Current index is the start of the line + length of correct input prefix
-        currentOverallCharIndex = baseIndex + correctLength;
+        const currentAttemptCorrectIndex = baseIndex + correctLength;
+
+        // Update the main currentOverallCharIndex only if the current attempt
+        // represents forward progress or maintains the current position correctly.
+        // This prevents the index from going backward if the user makes a mistake.
+        currentOverallCharIndex = Math.max(currentOverallCharIndex, currentAttemptCorrectIndex);
         currentOverallCharIndex = Math.min(currentOverallCharIndex, totalDisplayLength); // Cap at total display length
 
 
@@ -569,10 +572,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Render the next line
                 renderLine(currentDisplayLineIndex);
 
-                // Also re-focus the hidden input if there are more lines
-                if (currentDisplayLineIndex < lines.length) {
-                    focusHiddenInput();
-                }
                 // Also re-focus the hidden input if there are more lines
                 if (currentDisplayLineIndex < lines.length) {
                     focusHiddenInput();
@@ -682,51 +681,59 @@ function resetPractice(startFromSaved = false) {
     if (hiddenInput) hiddenInput.value = '';
     renderCustomInput('');
     updateCursorPosition();
-    // typingInputArea.classList.remove('has-content'); // Not needed without placeholder
 
     let startDisplayLineIndex = 0;
-    let initialInputOffset = 0; // How many chars to prefill on the starting line (Not used visually for now)
-    currentOverallCharIndex = 0; // Default to start
+    let initialInputOffset = 0;
+    let focusInput = true; // Flag to control if input should be focused
 
-    if (startFromSaved && initialProgressIndex > 0 && initialProgressIndex < totalDisplayLength) {
-        // Use the saved index (relative to display structure)
-        currentOverallCharIndex = initialProgressIndex;
-        // Find the corresponding display line and offset
-        const startPos = getDisplayLineAndOffset(currentOverallCharIndex);
-        startDisplayLineIndex = startPos.lineIndex;
-        initialInputOffset = startPos.charOffset; // Store offset, even if not visually prefilling
-        console.log(`Resuming at Display Line ${startDisplayLineIndex + 1}, Char Offset ${initialInputOffset}`);
-
-        // Approximate stats based on starting point (optional)
-        totalTypedChars = currentOverallCharIndex; // Assume previous chars were typed correctly for WPM base
-        totalTypedEntries = currentOverallCharIndex; // Approximation
-        totalErrors = 0; // Reset errors on resume
-    } else {
-         console.log("Starting from beginning.");
-         totalErrors = 0;
-         totalTypedChars = 0;
-         totalTypedEntries = 0;
-    }
-
-    currentDisplayLineIndex = startDisplayLineIndex;
-
-    // Reset display elements
+    // Reset stats and display elements first
     timerElement.textContent = 0;
     wpmElement.textContent = 0;
     accuracyElement.textContent = 100;
     errorsElement.textContent = 0;
     document.getElementById('results').classList.remove('completed');
-    updateCompletionPercentage(); // Update completion based on reset index
+    totalErrors = 0;
+    totalTypedChars = 0;
+    totalTypedEntries = 0;
+    currentOverallCharIndex = 0; // Default to start
 
-    renderLine(currentDisplayLineIndex); // Render the starting display line
+    if (startFromSaved && initialProgressIndex > 0) {
+        // Check if saved progress indicates completion
+        if (initialProgressIndex >= totalDisplayLength) {
+            console.log("Resuming from completed state.");
+            currentOverallCharIndex = totalDisplayLength;
+            startDisplayLineIndex = lines.length; // Set index beyond last line to trigger completion message
+            focusInput = false; // Don't focus input if already complete
+            // Stats are already reset to 0/100%
+        } else {
+            // Resuming mid-text
+            currentOverallCharIndex = initialProgressIndex;
+            const startPos = getDisplayLineAndOffset(currentOverallCharIndex);
+            startDisplayLineIndex = startPos.lineIndex;
+            initialInputOffset = startPos.charOffset;
+            console.log(`Resuming at Display Line ${startDisplayLineIndex + 1}, Char Offset ${initialInputOffset}`);
+            // Approximate stats based on starting point
+            totalTypedChars = currentOverallCharIndex;
+            totalTypedEntries = currentOverallCharIndex;
+            // Errors are reset
+        }
+    } else {
+        console.log("Starting from beginning.");
+        // Stats are already reset
+    }
 
-    // NOTE: Pre-filling the custom input visually on resume is complex
-    // due to mapping progress_index back to the original text structure.
-    // For now, we start the custom input visually empty even when resuming.
-    // The `currentOverallCharIndex` is set correctly earlier for stats.
+    currentDisplayLineIndex = startDisplayLineIndex;
 
-    // Ensure hidden input is focused after resetting
-    focusHiddenInput();
+    // Update completion percentage based on the determined starting index
+    updateCompletionPercentage();
+
+    // Render the starting line (or completion message)
+    renderLine(currentDisplayLineIndex);
+
+    // Ensure hidden input is focused only if not completed on load
+    if (focusInput) {
+        focusHiddenInput();
+    }
 } // End resetPractice
 
 
@@ -739,40 +746,10 @@ window.addEventListener('resize', updateCursorPosition); // Re-add resize listen
 // --- Initial Setup ---
 createHiddenInput(); // Create the hidden input field
 
-// Calculate dynamic line width (Temporarily disabled for debugging)
-let dynamicTargetWidth = 60; // Default fallback
-console.log(`Using fixed line width for debugging: ${dynamicTargetWidth} chars`);
-/*
-if (lineDisplay && lineDisplay.clientWidth > 0) {
-    const displayWidth = lineDisplay.clientWidth;
-    const tempSpan = document.createElement('span');
-    tempSpan.textContent = 'm'; // Use a common character for width estimation
-    const styles = window.getComputedStyle(lineDisplay);
-    tempSpan.style.fontFamily = styles.fontFamily;
-    tempSpan.style.fontSize = styles.fontSize;
-    tempSpan.style.fontWeight = styles.fontWeight;
-    tempSpan.style.letterSpacing = styles.letterSpacing;
-    tempSpan.style.position = 'absolute'; // Prevent layout shift
-    tempSpan.style.visibility = 'hidden'; // Keep it invisible
-    tempSpan.style.left = '-9999px';
-    document.body.appendChild(tempSpan);
-    const charWidth = tempSpan.offsetWidth;
-    document.body.removeChild(tempSpan);
 
-    if (charWidth > 0) {
-        // Adjust calculation based on padding of lineDisplay if necessary
-        const paddingLeft = parseFloat(styles.paddingLeft) || 0;
-        const paddingRight = parseFloat(styles.paddingRight) || 0;
-        const effectiveWidth = displayWidth - paddingLeft - paddingRight;
-        dynamicTargetWidth = Math.max(10, Math.floor(effectiveWidth / charWidth)); // Calculate based on effective width
-        console.log(`Calculated dynamic line width: ${dynamicTargetWidth} chars (Effective Display: ${effectiveWidth}px, Char: ${charWidth.toFixed(2)}px)`);
-    } else {
-         console.warn("Could not calculate character width, falling back to default.");
-    }
-} else {
-    console.warn("lineDisplay not found or has no width, falling back to default line width.");
-}
-*/
+// Use a fixed line width for simplicity during refactoring
+let dynamicTargetWidth = 60; // Default fallback
+console.log(`Using fixed line width: ${dynamicTargetWidth} chars`);
 
 lines = splitIntoLines(fullText, dynamicTargetWidth); // Generate display lines using dynamic width
 totalDisplayLength = calculateTotalDisplayLength(lines); // Calculate total length of display structure

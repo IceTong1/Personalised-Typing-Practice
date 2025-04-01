@@ -224,9 +224,6 @@ main.container { /* Target main specifically if it has .container */
 }
 
 /* Removed hover effect to prevent potential modal movement */
-/* main.container:hover { */
-/*     transform: translateY(-2px); */
-/* } */
 
 /* --- Form Styles --- */
 form label { /* Add basic label styling */
@@ -478,10 +475,8 @@ form textarea:focus {
 /* --- End List Group Styles --- */
 
 
-/* Remove container styles as it's no longer used for layering */
-/* .typing-area-container { ... } */
+/* Removed old .typing-area-container rule */
 
-/* Style for the visible text display box */
 /* Style for the visible text display box */
 #current-line-display {
     /* Remove positioning related to layering */
@@ -503,8 +498,8 @@ form textarea:focus {
 
 /* Style for the VISIBLE input area below the display */
 #typing-input {
-    /* Remove absolute positioning and transparency */
-    /* position: absolute; ... */
+    /* Note: This element is no longer used with the custom input implementation */
+    /* Keeping styles for reference or potential fallback */
     width: 100%;
     font-family: 'JetBrains Mono', monospace; /* Keep font consistent */
     font-size: 1.4rem; /* Slightly smaller than display is fine */
@@ -518,9 +513,6 @@ form textarea:focus {
     border-radius: 8px; /* Standard border radius */
     box-sizing: border-box;
     margin-top: 0; /* Display has margin-bottom now */
-    /* Remove height: 100% */
-    /* Remove z-index */
-    /* Remove overflow: hidden */
 }
 
 /* Standard focus style for visible input */

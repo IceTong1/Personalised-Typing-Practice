@@ -1,11 +1,11 @@
-<%- include('partials/header', { user: user }) %>
+<%- include('partials/header') %>
 
 <div class="container mt-4">
     <h2>Profile</h2>
     <p>Welcome, <%= user ? user.username : 'Guest' %>!</p>
 
-    <%# User stats will be displayed here %>
-    <%# Wrap stats in a Bootstrap card %>
+    <!-- User stats will be displayed here -->
+    <!-- Wrap stats in a Bootstrap card -->
     <div id="user-stats" class="card">
         <div class="card-body">
             <h3 class="card-title">Your Statistics</h3>

@@ -1,4 +1,4 @@
-    <%- include('partials/header', { user: user }) %>
+    <%- include('partials/header') %>
 
 <h2>Practice: <%= text ? text.title : 'Text Not Found' %></h2>
 
@@ -7,45 +7,44 @@
         <p>Start typing the text below. Errors will be highlighted.</p>
     </div>
 
-    <%# Wrap text display and input in a Bootstrap card %>
-    <div class="card shadow-sm mb-4"> <%# Added shadow-sm, increased mb-4 %>
-        <div class="card-body p-4"> <%# Increased padding %>
-            <%# Container for the display text - JS still needs data attributes here %>
-            <div id="current-line-container" <%# Re-using this ID for data %>
+    <!-- Wrap text display and input in a Bootstrap card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-4">
+            <!-- Container for the display text - JS still needs data attributes here -->
+            <!-- Re-using this ID for data -->
+            <div id="current-line-container"
                  data-text-content="<%= text.content %>"
                  data-text-id="<%= text.id %>"
                  data-progress-index="<%= text.progress_index %>">
-                 <%# The visible display box for the target text - use card-text styling? %>
-                 <%# Using pre for better whitespace handling, adjust styling %>
-                <pre id="current-line-display" class="p-3 bg-body-tertiary rounded" style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 1.6; margin-left: 0; margin-right: 0;"><%# Removed mb-3, Added zero horizontal margins %></pre>
+                 <!-- The visible display box for the target text -->
+                 <!-- Using pre for better whitespace handling -->
+                <pre id="current-line-display" class="p-3 bg-body-tertiary rounded" style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 1.6; margin-left: 0; margin-right: 0;"></pre>
             </div>
-            <%# Input area using spans, styled like the display box %>
-            <div id="typing-input-area" class="p-3 bg-body-tertiary rounded" <%# Reverted padding to p-3 %>
-                 style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 0.4; position: relative; white-space: pre-wrap; overflow-wrap: break-word; cursor: text; margin-top: 1rem;"> <%# Reverted line-height and re-added min-height %>
-                <div id="typing-input-content"></div> <%# Container for typed character spans %>
-                <span id="typing-cursor" class="typing-cursor"></span> <%# Blinking cursor element %>
-                <%# Placeholder could be added here if needed, but might conflict with typed text %>
+            <!-- Input area using spans, styled like the display box -->
+            <div id="typing-input-area" class="p-3 bg-body-tertiary rounded"
+                 style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 0.4; position: relative; white-space: pre-wrap; overflow-wrap: break-word; cursor: text; margin-top: 1rem;">
+                <div id="typing-input-content"></div> <!-- Container for typed character spans -->
+                <span id="typing-cursor" class="typing-cursor"></span> <!-- Blinking cursor element -->
+                <!-- Placeholder could be added here if needed -->
             </div>
 
-            <%# The visible textarea for user input - add form-control class %>
-            <%# Input box removed as per request %>
+            <!-- Input box removed as per request -->
         </div>
     </div>
 
-    <%# Restructure results using Bootstrap grid with border and padding %>
-    <div id="results" class="row text-center my-4 p-3 border rounded bg-body-tertiary"> <%# Added my-4, p-3, border, rounded, bg %>
-        <div class="col-md col-6 mb-2 mb-md-0">WPM<br><strong id="wpm" class="fs-4">0</strong></div> <%# Added line break, fs-4 %>
+    <!-- Restructure results using Bootstrap grid with border and padding -->
+    <div id="results" class="row text-center my-4 p-3 border rounded bg-body-tertiary">
+        <div class="col-md col-6 mb-2 mb-md-0">WPM<br><strong id="wpm" class="fs-4">0</strong></div>
         <div class="col-md col-6 mb-2 mb-md-0">Accuracy<br><strong id="accuracy" class="fs-4">100</strong>%</div>
         <div class="col-md col-6 mb-2 mb-md-0">Errors<br><strong id="errors" class="fs-4">0</strong></div>
         <div class="col-md col-6 mb-2 mb-md-0">Time<br><strong id="timer" class="fs-4">0</strong>s</div>
-        <div class="col-md col-12">Completion<br><strong id="completion" class="fs-4">0</strong>%</div> <%# Full width on small screens %>
+        <div class="col-md col-12">Completion<br><strong id="completion" class="fs-4">0</strong>%</div> <!-- Full width on small screens -->
     </div>
 
-    <%# Add Bootstrap button group for controls %>
-    <%# Control buttons with more spacing %>
-    <div class="mt-4 d-flex justify-content-center gap-3"> <%# Increased mt-4, gap-3 %>
-        <button id="save-button" class="btn btn-success btn-lg"><i class="fas fa-save me-2"></i>Save Progress</button> <%# Added icon, btn-lg %>
-        <button id="reset-button" class="btn btn-warning btn-lg"><i class="fas fa-redo me-2"></i>Reset</button> <%# Added icon, btn-lg %>
+    <!-- Control buttons with more spacing -->
+    <div class="mt-4 d-flex justify-content-center gap-3">
+        <button id="save-button" class="btn btn-success btn-lg"><i class="fas fa-save me-2"></i>Save Progress</button>
+        <button id="reset-button" class="btn btn-warning btn-lg"><i class="fas fa-redo me-2"></i>Reset</button>
     </div>
 
 <% } else { %>
@@ -56,5 +55,5 @@
 
 <%- include('partials/footer') %>
 
-<%# Include client-side JS for practice logic %>
+<!-- Include client-side JS for practice logic -->
 <script src="/js/practice.js"></script>

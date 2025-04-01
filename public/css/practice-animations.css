@@ -56,8 +56,6 @@
     color: #e57373; /* Use error color */
 }
 
-/* Removed Line Transition Animations */
-
 /* Apply to the container holding the line spans */
 #current-line-display {
     /* Ensure it has layout for transforms */
@@ -127,6 +125,4 @@
 }
 
 
-/* Removed Fly-Off Animation */
-
-/* Reverted: Removed shrink/fade and explode animations */
+/* Removed old animations */

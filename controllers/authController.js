@@ -17,8 +17,8 @@ router.get('/login', (req, res) => {
         return res.redirect('/profile'); // Redirect logged-in users away from login page
     }
     // Render the login view ('login.ejs')
-    // Pass 'error: null' initially and 'user: null' for the header partial
-    res.render('login', { error: null, user: null });
+    // Pass 'error: null' initially. 'user' is available via res.locals from middleware.
+    res.render('login', { error: null });
 });
 
 /**
@@ -42,7 +42,7 @@ router.post('/login', (req, res) => {
     } else {
         // Login failed: Log the attempt and re-render the login page with an error message
         console.log(`Login failed for user: ${username}`);
-        res.render('login', { error: 'Invalid username or password.', user: null });
+        res.render('login', { error: 'Invalid username or password.' });
     }
 });
 
@@ -57,8 +57,8 @@ router.get('/register', (req, res) => {
         console.log('User already logged in, redirecting to profile.');
         return res.redirect('/profile');
     }
-    // Render the registration view ('register.ejs')
-    res.render('register', { error: null, user: null });
+    // Render the registration view ('register.ejs'). 'user' is available via res.locals.
+    res.render('register', { error: null });
 });
 
 /**
@@ -74,19 +74,19 @@ router.post('/register', (req, res) => {
     // Basic check for empty username or password (Moved first)
     if (!username || !password) {
          console.log(`Registration failed: Username or password empty.`);
-         return res.render('register', { error: 'Username and password are required.', user: null });
+         return res.render('register', { error: 'Username and password are required.' });
     }
 
     // Check if passwords match
     if (password !== confirmPassword) {
         console.log(`Registration failed for ${username}: Passwords do not match.`);
-        return res.render('register', { error: 'Passwords do not match.', user: null });
+        return res.render('register', { error: 'Passwords do not match.' });
     }
 
     // Check if username is already taken (only after basic checks pass)
     if (db.user_exists(username)) {
         console.log(`Registration failed for ${username}: Username already taken.`);
-        return res.render('register', { error: 'Username already taken.', user: null });
+        return res.render('register', { error: 'Username already taken.' });
     }
     // --- End Validation ---
 
@@ -104,7 +104,7 @@ router.post('/register', (req, res) => {
         // Failure: Log the error and re-render registration page with a generic error
         // This case might happen due to rare database errors or race conditions.
         console.error(`Registration failed unexpectedly for user: ${username}`);
-        res.render('register', { error: 'Registration failed. Please try again.', user: null });
+        res.render('register', { error: 'Registration failed. Please try again.' });
     }
 });
 

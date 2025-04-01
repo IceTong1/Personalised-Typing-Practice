@@ -1,7 +1,7 @@
-<%- include('partials/header', { user: user }) %>
+<%- include('partials/header') %>
 
 <div class="row justify-content-center">
-    <div class="col-md-8"> <%# Wider column for this form %>
+    <div class="col-md-8"> <!-- Wider column for this form -->
         <div class="card shadow-sm">
             <div class="card-body p-4">
                 <h2 class="card-title text-center mb-4">Add New Text</h2>
@@ -12,7 +12,7 @@
                     </div>
                 <% } %>
 
-                <%# Add enctype for file uploads %>
+                <!-- Add enctype for file uploads -->
                 <form action="/add_text" method="POST" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="title" class="form-label">Title:</label>
@@ -31,7 +31,7 @@
                         <div class="form-text">Leave text content blank if uploading a PDF.</div>
                     </div>
 
-                    <hr class="my-4"> <%# Visual separator %>
+                    <hr class="my-4"> <!-- Visual separator -->
 
                     <div class="mb-3">
                         <label for="category_id" class="form-label">Save to Folder:</label>
@@ -48,7 +48,7 @@
                         </select>
                     </div>
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4"> <%# Button alignment %>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4"> <!-- Button alignment -->
                          <a href="/texts" class="btn btn-outline-secondary">Cancel</a>
                          <button type="submit" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Add Text</button>
                     </div>
