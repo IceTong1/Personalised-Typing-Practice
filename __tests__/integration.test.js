@@ -53,7 +53,7 @@ describe('Integration Tests', () => {
             const res = await request(app).get('/login');
             expect(res.statusCode).toEqual(200);
             // Updated assertion to match actual heading/content
-            expect(res.text).toContain('<h2 class="mb-4">Login</h2>');
+            expect(res.text).toContain('<h2 class="card-title text-center mb-4">Login</h2>');
         });
     });
 
@@ -62,7 +62,7 @@ describe('Integration Tests', () => {
             const res = await request(app).get('/register');
             expect(res.statusCode).toEqual(200);
             // Updated assertion to match actual heading/content
-            expect(res.text).toContain('<h2 class="mb-4">Register</h2>');
+            expect(res.text).toContain('<h2 class="card-title text-center mb-4">Register</h2>');
         });
     });
 

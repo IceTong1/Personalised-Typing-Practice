@@ -1,4 +1,4 @@
-<%- include('partials/header', { user: user }) %>
+    <%- include('partials/header', { user: user }) %>
 
 <h2>Practice: <%= text ? text.title : 'Text Not Found' %></h2>
 
@@ -17,11 +17,18 @@
                  data-progress-index="<%= text.progress_index %>">
                  <%# The visible display box for the target text - use card-text styling? %>
                  <%# Using pre for better whitespace handling, adjust styling %>
-                <pre id="current-line-display" class="p-3 bg-body-tertiary rounded mb-3" style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 1.6;"><%# Line content will be populated by JavaScript %></pre>
+                <pre id="current-line-display" class="p-3 bg-body-tertiary rounded" style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 1.6; margin-left: 0; margin-right: 0;"><%# Removed mb-3, Added zero horizontal margins %></pre>
+            </div>
+            <%# Input area using spans, styled like the display box %>
+            <div id="typing-input-area" class="p-3 bg-body-tertiary rounded" <%# Reverted padding to p-3 %>
+                 style="font-family: 'JetBrains Mono', monospace; font-size: 1.4rem; min-height: 70px; line-height: 0.4; position: relative; white-space: pre-wrap; overflow-wrap: break-word; cursor: text; margin-top: 1rem;"> <%# Reverted line-height and re-added min-height %>
+                <div id="typing-input-content"></div> <%# Container for typed character spans %>
+                <span id="typing-cursor" class="typing-cursor"></span> <%# Blinking cursor element %>
+                <%# Placeholder could be added here if needed, but might conflict with typed text %>
             </div>
 
             <%# The visible textarea for user input - add form-control class %>
-            <textarea id="typing-input" class="form-control" rows="3" placeholder="Start typing here..." style="font-family: 'JetBrains Mono', monospace; font-size: 1.2rem;"></textarea> <%# Adjusted font size %>
+            <%# Input box removed as per request %>
         </div>
     </div>
 
