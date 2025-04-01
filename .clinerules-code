@@ -71,6 +71,7 @@ When referencing Cursor AI, always use the correct capitalization and spacing
 When adding examples or explanations, focus on practical use cases for Cursor AI users
 If a .cursorrules file fits multiple categories, place it in the most relevant one and cross-reference in others if necessary
 Keep the 'Other' category for .cursorrules files that don't fit neatly into the main categories
+When adding new functionality or modifying existing code, always run the test suite (`npm test`) to ensure no regressions. Add new tests or update existing ones as needed to cover the changes.
 
 // Additional insights
 .cursorrules files are repo-specific "Rules for AI"

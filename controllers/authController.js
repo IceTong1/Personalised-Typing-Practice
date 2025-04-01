@@ -71,22 +71,22 @@ router.post('/register', (req, res) => {
     const { username, password, confirmPassword } = req.body;
 
     // --- Input Validation ---
+    // Basic check for empty username or password (Moved first)
+    if (!username || !password) {
+         console.log(`Registration failed: Username or password empty.`);
+         return res.render('register', { error: 'Username and password are required.', user: null });
+    }
+
     // Check if passwords match
     if (password !== confirmPassword) {
         console.log(`Registration failed for ${username}: Passwords do not match.`);
         return res.render('register', { error: 'Passwords do not match.', user: null });
     }
 
-    // Check if username is already taken
+    // Check if username is already taken (only after basic checks pass)
     if (db.user_exists(username)) {
         console.log(`Registration failed for ${username}: Username already taken.`);
         return res.render('register', { error: 'Username already taken.', user: null });
-    }
-
-    // Basic check for empty username or password
-    if (!username || !password) {
-         console.log(`Registration failed: Username or password empty.`);
-         return res.render('register', { error: 'Username and password are required.', user: null });
     }
     // --- End Validation ---
 
