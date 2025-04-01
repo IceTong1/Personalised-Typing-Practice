@@ -100,6 +100,12 @@ app.use((err, req, res, next) => {
 
 
 // --- Server Start ---
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-});
+// Only start listening if the script is run directly (not required by another module like tests)
+if (require.main === module) {
+    app.listen(port, () => {
+        console.log(`Server running at http://localhost:${port}`);
+    });
+}
+
+// --- Export App for Testing ---
+module.exports = app; // Export the configured Express app
