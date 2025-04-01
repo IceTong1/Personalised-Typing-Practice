@@ -110,36 +110,15 @@ hr { /* Style horizontal rules */
 
 /* --- End General Styles --- */
 
-/* --- Utility Classes --- */
-.mt-3 { margin-top: 1rem !important; } /* Approximate Bootstrap value */
-.mt-4 { margin-top: 1.5rem !important; } /* Approximate Bootstrap value */
-.mb-3 { margin-bottom: 1rem !important; }
-.mb-4 { margin-bottom: 1.5rem !important; } /* Approximate Bootstrap value */
-.ms-2 { margin-left: 0.5rem !important; } /* Approximate Bootstrap value */
+/* --- Utility Classes (Keep only custom overrides) --- */
 
 .text-muted, .text-body-secondary { /* Combine similar concepts */
     color: var(--text-secondary) !important;
 }
-.text-center { text-align: center !important; }
-
-.flex-between-center {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-}
 /* --- End Utility Classes --- */
 
 
-/* Basic Layout Container */
-.container {
-    width: 100%;
-    max-width: 1140px; /* Example max-width, similar to Bootstrap's lg breakpoint */
-    padding-right: 15px; /* Standard container padding */
-    padding-left: 15px;
-    margin-right: auto; /* Center the container */
-    margin-left: auto;
-    box-sizing: border-box; /* Include padding in width calculation */
-}
+/* Basic Layout Container - Provided by Bootstrap */
 
 /* Replicating Bootstrap Navbar Styles */
 nav.navbar { /* Target the nav element with the .navbar class */
@@ -232,9 +211,7 @@ form label { /* Add basic label styling */
     font-weight: 600;
 }
 
-.form-group {
-    margin-bottom: 1rem; /* Spacing between form elements */
-}
+/* .form-group - Use Bootstrap margin utilities like mb-3 instead */
 
 form input[type="text"],
 form input[type="password"],
@@ -396,20 +373,9 @@ form textarea:focus {
 }
 
 
-/* Full Width Button */
-.btn-block {
-    display: block;
-    width: 100%;
-}
+/* Full Width Button - Use Bootstrap .w-100 or .d-grid */
 
-/* Centered Button Group */
-.button-group-centered {
-    margin-top: 1.5rem; /* Replicate mt-3 */
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem; /* Replicate gap-2 */
-    flex-wrap: wrap; /* Allow buttons to wrap on small screens */
-}
+/* Centered Button Group - Use Bootstrap d-flex justify-content-center gap-* */
 
 /* --- End Button Styles --- */
 
@@ -576,76 +542,10 @@ form textarea:focus {
     border-radius: 12px;
 }
 
-/* Character Typing Animations */
-@keyframes char-correct-pop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); color: var(--success-color); } /* Pop effect */
-    100% { transform: scale(1); }
-}
-
-@keyframes char-incorrect-shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-3px); color: var(--error-color); } /* Shake effect */
-    75% { transform: translateX(3px); color: var(--error-color); }
-}
-
-/* Apply animations to the temporary effect classes */
-#current-line-display span {
-    display: inline-block; /* Needed for transform */
-    transition: color 0.1s ease-out; /* Smooth color transition back */
-    /* Add a small margin to visually separate inline-block spans */
-    margin-right: 1px;
-}
-
-/* Ensure spaces occupy some width when inline-block */
-#current-line-display span.space-char {
-    /* Ensure it still takes up space */
-    min-width: 0.25em; /* Adjust as needed based on font size */
-    /* Remove any styles that make it look like an underscore */
-    border-bottom: none;
-    padding: 0;
-    margin-bottom: 0;
-}
+/* Character Typing Animations moved to practice-animations.css */
 
 
-.effect-correct {
-    animation: char-correct-pop 0.3s ease-out;
-}
-
-.effect-incorrect {
-    animation: char-incorrect-shake 0.3s ease-in-out;
-}
-
-/* Responsive Navbar Styles (Replicating navbar-expand-lg) */
-@media (max-width: 991.98px) { /* Bootstrap lg breakpoint - 1px */
-    nav.navbar .container {
-        /* Allow brand and nav to stack */
-        flex-direction: column;
-        align-items: flex-start; /* Align items to the start when stacked */
-    }
-
-    .navbar-nav {
-        flex-direction: column; /* Stack nav items vertically */
-        width: 100%; /* Take full width */
-        margin-left: 0; /* Reset margin used for right alignment */
-        margin-top: 0.5rem; /* Add space below brand */
-    }
-
-    .nav-item {
-        /* Optional: Add spacing between stacked items */
-        margin-bottom: 0.25rem;
-    }
-
-    .nav-link {
-        padding: 0.5rem 0; /* Adjust padding for vertical layout */
-        /* Optional: Add border or background for separation */
-        width: 100%; /* Ensure link takes full width */
-        border-radius: 0; /* Optional: Remove radius in stacked view */
-    }
-
-    /* Note: This doesn't include the toggle button functionality,
-       which requires JavaScript. Links will always be visible. */
-}
+/* Responsive Navbar Styles - Handled by Bootstrap .navbar-expand-lg */
 
 /* Footer Styles */
 footer {
