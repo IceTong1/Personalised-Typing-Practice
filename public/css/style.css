@@ -223,9 +223,10 @@ main.container { /* Target main specifically if it has .container */
     flex-grow: 1; /* Needed for sticky footer */
 }
 
-main.container:hover {
-    transform: translateY(-2px);
-}
+/* Removed hover effect to prevent potential modal movement */
+/* main.container:hover { */
+/*     transform: translateY(-2px); */
+/* } */
 
 /* --- Form Styles --- */
 form label { /* Add basic label styling */
@@ -261,6 +262,25 @@ form textarea:focus {
     box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.2);
     background-color: rgba(255, 255, 255, 0.08);
     transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast); /* Smooth focus transition */
+}
+
+/* Specific styles for the folder name input within its modal */
+#createFolderModal #folderNameInput {
+    color: #212529 !important; /* Force dark text color */
+    background-color: #ffffff !important; /* Force white background */
+}
+
+#createFolderModal #folderNameInput:focus {
+    color: #212529 !important; /* Keep dark text on focus */
+    background-color: #ffffff !important; /* Keep white background on focus */
+    /* Focus border/shadow should still be inherited or default Bootstrap */
+}
+
+/* Ensure text within modals is dark */
+.modal .modal-title,
+.modal .form-label,
+.modal .modal-body { /* Target body as well for any plain text */
+    color: #212529 !important; /* Force dark text color */
 }
 /* --- End Form Styles --- */
 
@@ -298,6 +318,13 @@ form textarea:focus {
     font-size: 0.875rem;
     border-radius: 6px; /* Smaller radius for smaller button */
     margin-top: 0; /* Remove default top margin for inline buttons */
+}
+
+.btn-sm:hover {
+    transform: none; /* Prevent small buttons from moving on hover */
+    /* Keep other hover effects like brightness/shadow if desired */
+    filter: brightness(1.1);
+    box-shadow: var(--shadow-sm);
 }
 
 /* Specific Button Variants */
