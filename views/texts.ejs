@@ -44,14 +44,20 @@
                             <i class="fas fa-folder me-2 text-warning"></i><%= category.name %>
                         </a>
                         <div class="folder-actions d-flex gap-1">
-                            <!-- Rename Form (Inline for simplicity, could be modal) -->
-                            <form action="/categories/<%= category.id %>/rename" method="POST" class="d-inline-block" onsubmit="return handleRename(this);">
-                                <input type="hidden" name="new_name" value="<%= category.name %>"> <!-- Pre-fill for prompt -->
-                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Rename"><i class="fas fa-edit"></i></button>
-                            </form>
+                            <!-- Rename Button (triggers modal) -->
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-secondary rename-folder-btn"
+                                    title="Rename"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#renameFolderModal"
+                                    data-category-id="<%= category.id %>"
+                                    data-current-name="<%= category.name %>">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             <!-- Delete Form -->
-                            <form action="/categories/<%= category.id %>/delete" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this folder? Only empty folders can be deleted.');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                            <!-- Folder Delete Form (JS handled) -->
+                            <form action="/categories/<%= category.id %>/delete" method="POST" class="d-inline-block delete-folder-form">
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-folder-btn" title="Delete" data-category-id="<%= category.id %>" data-category-name="<%= category.name %>"><i class="fas fa-trash"></i></button>
                             </form>
                         </div>
                     </div>
@@ -88,8 +94,8 @@
                             <!-- Other Action Buttons -->
                             <a href="/practice/<%= text.id %>" class="btn btn-sm btn-outline-info practice-btn" title="Practice"><i class="fas fa-keyboard"></i></a>
                             <a href="/edit_text/<%= text.id %>" class="btn btn-sm btn-outline-warning edit-btn" title="Edit"><i class="fas fa-edit"></i></a>
-                            <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this text?');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+                            <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block">
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
                             </form>
                         </div>
                     </div>
@@ -143,19 +149,81 @@
   </div>
 </div>
 
+<!-- Rename Folder Modal -->
+<div class="modal fade" id="renameFolderModal" tabindex="-1" aria-labelledby="renameFolderModalLabel" aria-hidden="true">
+<div class="modal-dialog modal-dialog-centered">
+  <div class="modal-content">
+    <form id="renameFolderForm" action="" method="POST"> <!-- Action will be set by JS -->
+      <div class="modal-header">
+        <h5 class="modal-title" id="renameFolderModalLabel">Rename Folder</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <!-- Hidden input for category ID (optional, as it's in the action) -->
+          <!-- <input type="hidden" name="category_id" id="renameCategoryIdInput"> -->
+          <div class="mb-3">
+            <label for="renameFolderNameInput" class="form-label">New Folder Name</label>
+            <input type="text" name="new_name" class="form-control" id="renameFolderNameInput" placeholder="Enter new folder name..." required>
+          </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmationModal" class="modal fade" tabindex="-1" aria-labelledby="deleteConfirmationModalLabel" aria-hidden="true" style="z-index: 1060;"> <!-- Higher z-index -->
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmationModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteConfirmationMessage">Are you sure you want to delete this item?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="cancelDeleteBtn">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <%- include('partials/footer') %>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <script>
-    // Rename Handler (simple prompt version)
-    function handleRename(form) {
-        const currentName = form.querySelector('input[name="new_name"]').value;
-        const newName = prompt("Enter new folder name:", currentName);
-        if (newName && newName.trim() !== '' && newName !== currentName) {
-            form.querySelector('input[name="new_name"]').value = newName.trim();
-            return true; // Proceed with form submission
-        }
-        return false; // Cancel submission
+    // Rename Modal Handler
+    const renameFolderModal = document.getElementById('renameFolderModal');
+    if (renameFolderModal) {
+        renameFolderModal.addEventListener('show.bs.modal', function (event) {
+            // Button that triggered the modal
+            const button = event.relatedTarget;
+            // Extract info from data-* attributes
+            const categoryId = button.getAttribute('data-category-id');
+            const currentName = button.getAttribute('data-current-name');
+
+            // Get the form and input elements within the modal
+            const modalForm = renameFolderModal.querySelector('#renameFolderForm');
+            const nameInput = renameFolderModal.querySelector('#renameFolderNameInput');
+            // const categoryIdInput = renameFolderModal.querySelector('#renameCategoryIdInput'); // If using hidden input
+
+            // Update the form's action URL
+            modalForm.action = `/categories/${categoryId}/rename`;
+
+            // Update the modal's input field with the current name
+            nameInput.value = currentName;
+            // categoryIdInput.value = categoryId; // If using hidden input
+
+            // Optional: Focus the input field when the modal opens
+            setTimeout(() => nameInput.focus(), 500); // Timeout helps ensure modal is fully visible
+        });
     }
 
     // SortableJS for Texts
@@ -188,4 +256,18 @@
     }
 
     // Removed old toggleMoveForm function
+
+    // Auto-dismiss flash messages
+    document.addEventListener('DOMContentLoaded', (event) => {
+        const alertElement = document.querySelector('.alert.alert-dismissible');
+        if (alertElement) {
+            // Wait 5 seconds then close the alert
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getOrCreateInstance(alertElement);
+                if (alertInstance) {
+                    alertInstance.close();
+                }
+            }, 5000); // 5000 milliseconds = 5 seconds
+        }
+    });
 </script>
