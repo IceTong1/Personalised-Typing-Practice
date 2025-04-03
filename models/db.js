@@ -1,6 +1,8 @@
     // --- Dependencies ---
 const Database = require('better-sqlite3'); // SQLite database driver
 const path = require('path'); // Utility for working with file paths
+const bcrypt = require('bcrypt'); // Library for password hashing
+const saltRounds = 10; // Cost factor for bcrypt hashing
 
 // --- Database Connection ---
 // Construct the absolute path to the database file
@@ -109,11 +111,12 @@ function new_user(username, password) {
         console.warn(`Attempt to create existing user: ${username}`);
         return -1; // Username already taken
     }
-    // IMPORTANT: In a real application, hash the password before storing!
+    // Hash the password before storing
+    const hashedPassword = bcrypt.hashSync(password, saltRounds);
     const stmt = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)');
     try {
         // Execute the insert statement with username and password
-        const info = stmt.run(username, password);
+        const info = stmt.run(username, hashedPassword);
         // Return the ID of the newly inserted row
         console.log(`User created: ${username} (ID: ${info.lastInsertRowid})`);
         return info.lastInsertRowid;
@@ -142,15 +145,16 @@ function login(username, password) {
         return -1;
     }
 
-    // --- INSECURE Plain Text Comparison (for demonstration only) ---
-    if (user.password === password) {
+    // Compare the provided password with the stored hash
+    const match = bcrypt.compareSync(password, user.password); // user.password is the hash from DB
+
+    if (match) {
         console.log(`User logged in: ${username} (ID: ${user.id})`);
-        return user.id; // Correct password
+        return user.id; // Passwords match
     } else {
         console.log(`Login attempt failed: Incorrect password for ${username}`);
-        return -1; // Incorrect password
+        return -1; // Passwords don't match
     }
-    // --- End INSECURE Comparison ---
 }
 
 /**
