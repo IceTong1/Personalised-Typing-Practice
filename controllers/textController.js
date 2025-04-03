@@ -8,8 +8,26 @@ const multer = require('multer'); // Middleware for handling multipart/form-data
 const { execFileSync } = require('child_process'); // For running external commands synchronously (pdftotext)
 const fs = require('fs'); // File system module for writing/deleting temporary files
 const tmp = require('tmp'); // Library for creating temporary file paths
+const { URLSearchParams } = require('url'); // Import URLSearchParams
 
 // --- Helper Functions ---
+
+/**
+ * Builds a redirect URL with query parameters, handling '?' vs '&' correctly.
+ * @param {string} basePath The base path (e.g., '/texts')
+ * @param {object} params An object containing query parameters (key-value pairs).
+ * @returns {string} The full redirect URL.
+ */
+function buildRedirectUrl(basePath, params) {
+    const searchParams = new URLSearchParams();
+    for (const key in params) {
+        if (params[key] !== null && params[key] !== undefined) {
+            searchParams.append(key, params[key]);
+        }
+    }
+    const queryString = searchParams.toString();
+    return queryString ? `${basePath}?${queryString}` : basePath;
+}
 
 /**
  * Cleans text extracted from PDFs or submitted via textarea.
@@ -654,10 +672,10 @@ router.post('/categories', requireLogin, (req, res) => {
     let parentId = parent_category_id ? parseInt(parent_category_id, 10) : null;
 
     if (isNaN(parentId) && parent_category_id != null) { // Check if parsing failed but it wasn't explicitly null
-        return res.redirect(`/texts?message=Invalid parent category ID.`);
+        return res.redirect(buildRedirectUrl('/texts', { message: 'Invalid parent category ID.' }));
     }
     if (!name || name.trim().length === 0) {
-        return res.redirect(`/texts${parentId ? '?category_id='+parentId : ''}&message=Folder name cannot be empty.`);
+        return res.redirect(buildRedirectUrl('/texts', { message: 'Folder name cannot be empty.', category_id: parentId }));
     }
 
     try {
@@ -666,28 +684,25 @@ router.post('/categories', requireLogin, (req, res) => {
         if (newCategoryId !== -1) {
             console.log(`Category created: ID ${newCategoryId}, Name "${name.trim()}", User ${userId}, Parent ${parentId}`);
             // Construct redirect URL carefully
-            let redirectUrl = '/texts?message=Folder created successfully!';
-            if (parentId) {
-                redirectUrl += '&category_id=' + parentId;
-            }
-            res.redirect(redirectUrl);
+            res.redirect(buildRedirectUrl('/texts', {
+                message: 'Folder created successfully!',
+                category_id: parentId
+            }));
         } else {
             console.warn(`Failed to create category "${name.trim()}" for user ${userId}, Parent ${parentId} (likely name conflict)`);
             // Construct redirect URL carefully
-            let redirectUrl = '/texts?message=Failed to create folder. Name might already exist.';
-            if (parentId) {
-                redirectUrl += '&category_id=' + parentId;
-            }
-            res.redirect(redirectUrl);
+             res.redirect(buildRedirectUrl('/texts', {
+                message: 'Failed to create folder. Name might already exist.',
+                category_id: parentId
+            }));
         }
     } catch (error) {
         console.error(`Error creating category "${name.trim()}" for user ${userId}:`, error);
         // Construct redirect URL carefully
-        let redirectUrl = '/texts?message=Server error creating folder.';
-        if (parentId) {
-            redirectUrl += '&category_id=' + parentId;
-        }
-        res.redirect(redirectUrl);
+        res.redirect(buildRedirectUrl('/texts', {
+            message: 'Server error creating folder.',
+            category_id: parentId
+        }));
     }
 });
 
@@ -704,12 +719,13 @@ router.post('/categories/:category_id/rename', requireLogin, (req, res) => {
     const userId = req.session.user.id;
 
     if (isNaN(categoryId)) {
-        return res.redirect('/texts?message=Invalid category ID.');
+        return res.redirect(buildRedirectUrl('/texts', { message: 'Invalid category ID.' }));
     }
     if (!new_name || new_name.trim().length === 0) {
         // Need parent ID to redirect correctly
         // TODO: Fetch category details to get parent ID before redirecting
-        return res.redirect(`/texts?message=New folder name cannot be empty.`);
+        // TODO: Use fetched parent ID in redirect
+        return res.redirect(buildRedirectUrl('/texts', { message: 'New folder name cannot be empty.' /*, category_id: parentId */ }));
     }
 
     try {
@@ -718,16 +734,19 @@ router.post('/categories/:category_id/rename', requireLogin, (req, res) => {
         if (success) {
             console.log(`Category renamed: ID ${categoryId}, New Name "${new_name.trim()}", User ${userId}`);
             // TODO: Use fetched parent ID in redirect
-            res.redirect(`/texts?message=Folder renamed successfully!`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(buildRedirectUrl('/texts', { message: 'Folder renamed successfully!' /*, category_id: parentId */ }));
         } else {
             console.warn(`Failed to rename category ID ${categoryId} to "${new_name.trim()}" for user ${userId} (not found, not owned, or name conflict)`);
             // TODO: Use fetched parent ID in redirect
-            res.redirect(`/texts?message=Failed to rename folder. Name might already exist or folder not found.`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(buildRedirectUrl('/texts', { message: 'Failed to rename folder. Name might already exist or folder not found.' /*, category_id: parentId */ }));
         }
     } catch (error) {
         console.error(`Error renaming category ID ${categoryId} for user ${userId}:`, error);
         // TODO: Use fetched parent ID in redirect
-        res.redirect(`/texts?message=Server error renaming folder.`);
+        // TODO: Use fetched parent ID in redirect
+        res.redirect(buildRedirectUrl('/texts', { message: 'Server error renaming folder.' /*, category_id: parentId */ }));
     }
 });
 
@@ -742,7 +761,7 @@ router.post('/categories/:category_id/delete', requireLogin, (req, res) => {
     const userId = req.session.user.id;
 
     if (isNaN(categoryId)) {
-        return res.redirect('/texts?message=Invalid category ID.');
+        return res.redirect(buildRedirectUrl('/texts', { message: 'Invalid category ID.' })); // Already fixed, ensure it stays
     }
 
     try {
@@ -751,23 +770,27 @@ router.post('/categories/:category_id/delete', requireLogin, (req, res) => {
         if (!isEmpty) {
             console.warn(`Attempt to delete non-empty category ID ${categoryId} by user ${userId}`);
             // TODO: Use fetched parent ID in redirect
-            return res.redirect(`/texts?message=Cannot delete folder. It is not empty.`);
+            // TODO: Use fetched parent ID in redirect
+            return res.redirect(buildRedirectUrl('/texts', { message: 'Cannot delete folder. It is not empty.' /*, category_id: parentId */ }));
         }
 
         const success = db.delete_category(categoryId, userId);
         if (success) {
             console.log(`Category deleted: ID ${categoryId}, User ${userId}`);
             // TODO: Use fetched parent ID in redirect
-            res.redirect(`/texts?message=Folder deleted successfully!`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(buildRedirectUrl('/texts', { message: 'Folder deleted successfully!' /*, category_id: parentId */ }));
         } else {
             console.warn(`Failed to delete category ID ${categoryId} for user ${userId} (not found or not owned)`);
             // TODO: Use fetched parent ID in redirect
-            res.redirect(`/texts?message=Failed to delete folder. Folder not found.`);
+            // TODO: Use fetched parent ID in redirect
+            res.redirect(buildRedirectUrl('/texts', { message: 'Failed to delete folder. Folder not found.' /*, category_id: parentId */ }));
         }
     } catch (error) {
         console.error(`Error deleting category ID ${categoryId} for user ${userId}:`, error);
         // TODO: Use fetched parent ID in redirect
-        res.redirect(`/texts?message=Server error deleting folder.`);
+        // Redirect to root on unexpected error
+        res.redirect(buildRedirectUrl('/texts', { message: 'Server error deleting folder.' }));
     }
 });
 
