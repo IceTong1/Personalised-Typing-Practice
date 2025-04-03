@@ -14,13 +14,12 @@ function requireLogin(req, res, next) {
     if (req.session && req.session.user) {
         // User is authenticated, allow request to proceed
         return next();
-    } else {
-        // User is not authenticated, deny access and redirect
-        console.log('Access denied: User not logged in. Redirecting to /login');
-        return res.redirect('/login');
     }
+    // User is not authenticated, deny access and redirect
+    if (process.env.NODE_ENV === 'development')
+        console.log('Access denied: User not logged in. Redirecting to /login');
+    return res.redirect('/login');
 }
-
 
 /**
  * Middleware: requireOwnership
@@ -35,7 +34,10 @@ function requireOwnership(req, res, next) {
 
     // Should already be caught by requireLogin, but good for defense
     if (!userId) {
-        console.log(`Ownership check failed: No user ID in session for text ID ${textId}`);
+        if (process.env.NODE_ENV === 'development')
+            console.log(
+                `Ownership check failed: No user ID in session for text ID ${textId}`
+            );
         return res.status(401).redirect('/login?message=Please log in');
     }
 
@@ -43,29 +45,49 @@ function requireOwnership(req, res, next) {
         const text = db.get_text(textId);
 
         if (!text) {
-            console.log(`Ownership check failed: Text not found for ID ${textId}`);
+            if (process.env.NODE_ENV === 'development')
+                console.log(
+                    `Ownership check failed: Text not found for ID ${textId}`
+                );
             // Redirect to profile with an error message might be friendlier
             return res.status(404).redirect('/profile?message=Text not found');
         }
 
         if (text.user_id !== userId) {
-            console.log(`Ownership check failed: User ID ${userId} does not own text ID ${textId} (Owner: ${text.user_id})`);
+            if (process.env.NODE_ENV === 'development')
+                console.log(
+                    `Ownership check failed: User ID ${userId} does not own text ID ${textId} (Owner: ${text.user_id})`
+                );
             // Redirect to profile with an error message
-            return res.status(403).redirect('/profile?message=You do not have permission to access this text');
+            return res
+                .status(403)
+                .redirect(
+                    '/profile?message=You do not have permission to access this text'
+                );
         }
 
         // Attach text to request object for convenience in subsequent handlers
         req.text = text;
-        console.log(`Ownership check passed: User ID ${userId} owns text ID ${textId}`);
+        // Log the category_id found in the middleware
+        if (process.env.NODE_ENV === 'development')
+            console.log(
+                `Ownership check passed: User ID ${userId} owns text ID ${textId}. Text category_id: ${text?.category_id}`
+            );
         next(); // User owns the text, proceed
     } catch (error) {
-        console.error(`Error during ownership check for text ID ${textId}:`, error);
-        return res.status(500).redirect('/profile?message=An error occurred while verifying text ownership');
+        console.error(
+            `Error during ownership check for text ID ${textId}:`,
+            error
+        );
+        return res
+            .status(500)
+            .redirect(
+                '/profile?message=An error occurred while verifying text ownership'
+            );
     }
 }
 
-
 module.exports = {
     requireLogin,
-    requireOwnership // Export the middleware
+    requireOwnership, // Export the middleware
 };

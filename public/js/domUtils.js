@@ -7,12 +7,17 @@ export function applyEffect(targetSpan, effectClass) {
     if (!targetSpan) return;
     targetSpan.classList.remove('effect-correct', 'effect-incorrect');
     // Force reflow to restart animation if class is re-added quickly
-    void targetSpan.offsetWidth;
+    // eslint-disable-next-line no-unused-vars
+    const _ = targetSpan.offsetWidth; // Force reflow
     targetSpan.classList.add(effectClass);
     // Use animationend event for cleanup
-    targetSpan.addEventListener('animationend', () => {
-        targetSpan.classList.remove(effectClass);
-    }, { once: true });
+    targetSpan.addEventListener(
+        'animationend',
+        () => {
+            targetSpan.classList.remove(effectClass);
+        },
+        { once: true }
+    );
 }
 
 /**
@@ -45,7 +50,12 @@ export function renderCustomInput(text, typingInputContent) {
  * @param {HTMLElement} typingInputContent - The element containing the character spans.
  * @param {boolean} isCustomInputFocused - Whether the custom input currently has focus.
  */
-export function updateCursorPosition(typingCursor, typingInputArea, typingInputContent, isCustomInputFocused) {
+export function updateCursorPosition(
+    typingCursor,
+    typingInputArea,
+    typingInputContent,
+    isCustomInputFocused
+) {
     if (!typingCursor || !typingInputArea || !typingInputContent) return; // Guard clauses
 
     if (!isCustomInputFocused) {
@@ -56,7 +66,7 @@ export function updateCursorPosition(typingCursor, typingInputArea, typingInputC
     typingCursor.style.opacity = '1';
 
     const spans = typingInputContent.querySelectorAll('span');
-    let lastSpan = spans.length > 0 ? spans[spans.length - 1] : null;
+    const lastSpan = spans.length > 0 ? spans[spans.length - 1] : null;
     // Use content div for positioning and padding calculation
     const contentStyle = getComputedStyle(typingInputContent);
     const contentRect = typingInputContent.getBoundingClientRect();
@@ -73,15 +83,19 @@ export function updateCursorPosition(typingCursor, typingInputArea, typingInputC
         cursorLeft = lastSpanRect.right - contentRect.left;
         cursorTop = lastSpanRect.top - contentRect.top;
 
-         // Basic wrap detection: If last span's right edge is close to container's right edge,
-         // assume cursor should be on the next line. This is approximate.
-         // Use content div's width and padding for threshold calculation
-         const rightThreshold = contentRect.width - parseFloat(contentStyle.paddingRight) - 10; // 10px buffer
-         if(lastSpanRect.right - contentRect.left > rightThreshold && spans.length > 0) { // Check spans.length > 0
-             cursorLeft = parseFloat(contentStyle.paddingLeft); // Move to start of next line (relative to content div)
-             cursorTop += lastSpanRect.height; // Move down one line height (approx)
-         }
-
+        // Basic wrap detection: If last span's right edge is close to container's right edge,
+        // assume cursor should be on the next line. This is approximate.
+        // Use content div's width and padding for threshold calculation
+        const rightThreshold =
+            contentRect.width - parseFloat(contentStyle.paddingRight) - 10; // 10px buffer
+        if (
+            lastSpanRect.right - contentRect.left > rightThreshold &&
+            spans.length > 0
+        ) {
+            // Check spans.length > 0
+            cursorLeft = parseFloat(contentStyle.paddingLeft); // Move to start of next line (relative to content div)
+            cursorTop += lastSpanRect.height; // Move down one line height (approx)
+        }
     }
     // else: cursor stays at padding top/left
 
@@ -91,14 +105,19 @@ export function updateCursorPosition(typingCursor, typingInputArea, typingInputC
     const contentOffsetX = contentRect.left - containerRect.left;
     const contentOffsetY = contentRect.top - containerRect.top;
 
-    let finalCursorLeft = contentOffsetX + cursorLeft;
-    let finalCursorTop = contentOffsetY + cursorTop;
-
+    const finalCursorLeft = contentOffsetX + cursorLeft;
+    const finalCursorTop = contentOffsetY + cursorTop;
 
     // Bounds check relative to the container
     const containerStyle = getComputedStyle(typingInputArea); // Get container style for bounds check
-    const maxLeft = containerRect.width - parseFloat(containerStyle.paddingRight) - typingCursor.offsetWidth; // Adjust for cursor width
-    const maxTop = containerRect.height - parseFloat(containerStyle.paddingBottom) - typingCursor.offsetHeight;
+    const maxLeft =
+        containerRect.width -
+        parseFloat(containerStyle.paddingRight) -
+        typingCursor.offsetWidth; // Adjust for cursor width
+    const maxTop =
+        containerRect.height -
+        parseFloat(containerStyle.paddingBottom) -
+        typingCursor.offsetHeight;
 
     typingCursor.style.left = `${Math.min(finalCursorLeft, maxLeft)}px`;
     typingCursor.style.top = `${Math.min(finalCursorTop, maxTop)}px`;

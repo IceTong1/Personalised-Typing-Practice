@@ -1,5 +1,6 @@
 // --- Dependencies ---
 const express = require('express');
+
 const router = express.Router(); // Create a new router object to handle requests
 const db = require('../models/db'); // Import database access functions from the model
 
@@ -13,7 +14,8 @@ const db = require('../models/db'); // Import database access functions from the
 router.get('/login', (req, res) => {
     // Check if user information already exists in the session
     if (req.session.user) {
-        console.log('User already logged in, redirecting to profile.');
+        if (process.env.NODE_ENV === 'development')
+            console.log('User already logged in, redirecting to profile.');
         return res.redirect('/profile'); // Redirect logged-in users away from login page
     }
     // Render the login view ('login.ejs')
@@ -35,13 +37,15 @@ router.post('/login', (req, res) => {
     // Check if login was successful (db.login returns user ID or -1)
     if (userId !== -1) {
         // Login successful: Store user ID and username in the session object
-        req.session.user = { id: userId, username: username };
-        console.log(`User logged in: ${username} (ID: ${userId})`);
+        req.session.user = { id: userId, username };
+        if (process.env.NODE_ENV === 'development')
+            console.log(`User logged in: ${username} (ID: ${userId})`);
         // Redirect the user to their profile page
         res.redirect('/profile');
     } else {
         // Login failed: Log the attempt and re-render the login page with an error message
-        console.log(`Login failed for user: ${username}`);
+        if (process.env.NODE_ENV === 'development')
+            console.log(`Login failed for user: ${username}`);
         res.render('login', { error: 'Invalid username or password.' });
     }
 });
@@ -54,7 +58,8 @@ router.post('/login', (req, res) => {
 router.get('/register', (req, res) => {
     // Redirect logged-in users away from registration page
     if (req.session.user) {
-        console.log('User already logged in, redirecting to profile.');
+        if (process.env.NODE_ENV === 'development')
+            console.log('User already logged in, redirecting to profile.');
         return res.redirect('/profile');
     }
     // Render the registration view ('register.ejs'). 'user' is available via res.locals.
@@ -73,19 +78,28 @@ router.post('/register', (req, res) => {
     // --- Input Validation ---
     // Basic check for empty username or password (Moved first)
     if (!username || !password) {
-         console.log(`Registration failed: Username or password empty.`);
-         return res.render('register', { error: 'Username and password are required.' });
+        if (process.env.NODE_ENV === 'development')
+            console.log(`Registration failed: Username or password empty.`);
+        return res.render('register', {
+            error: 'Username and password are required.',
+        });
     }
 
     // Check if passwords match
     if (password !== confirmPassword) {
-        console.log(`Registration failed for ${username}: Passwords do not match.`);
+        if (process.env.NODE_ENV === 'development')
+            console.log(
+                `Registration failed for ${username}: Passwords do not match.`
+            );
         return res.render('register', { error: 'Passwords do not match.' });
     }
 
     // Check if username is already taken (only after basic checks pass)
     if (db.user_exists(username)) {
-        console.log(`Registration failed for ${username}: Username already taken.`);
+        if (process.env.NODE_ENV === 'development')
+            console.log(
+                `Registration failed for ${username}: Username already taken.`
+            );
         return res.render('register', { error: 'Username already taken.' });
     }
     // --- End Validation ---
@@ -96,15 +110,20 @@ router.post('/register', (req, res) => {
     // Check if user creation was successful
     if (newUserId !== -1) {
         // Success: Automatically log in the new user by setting session data
-        req.session.user = { id: newUserId, username: username };
-        console.log(`User registered and logged in: ${username} (ID: ${newUserId})`);
+        req.session.user = { id: newUserId, username };
+        if (process.env.NODE_ENV === 'development')
+            console.log(
+                `User registered and logged in: ${username} (ID: ${newUserId})`
+            );
         // Redirect to the profile page
         res.redirect('/profile');
     } else {
         // Failure: Log the error and re-render registration page with a generic error
         // This case might happen due to rare database errors or race conditions.
         console.error(`Registration failed unexpectedly for user: ${username}`);
-        res.render('register', { error: 'Registration failed. Please try again.' });
+        res.render('register', {
+            error: 'Registration failed. Please try again.',
+        });
     }
 });
 
@@ -115,15 +134,16 @@ router.post('/register', (req, res) => {
  */
 router.get('/logout', (req, res) => {
     // Destroy the current session
-    req.session.destroy(err => {
+    req.session.destroy((err) => {
         if (err) {
             // Log error if session destruction fails
-            console.error("Error destroying session:", err);
+            console.error('Error destroying session:', err);
             // Redirect to homepage even if there's an error destroying session
             return res.redirect('/');
         }
         // Log successful logout and redirect to homepage
-        console.log('User logged out');
+        if (process.env.NODE_ENV === 'development')
+            console.log('User logged out');
         res.redirect('/');
     });
 });

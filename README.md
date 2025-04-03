@@ -16,11 +16,11 @@ A web application for practicing typing using custom texts.
 
 ## Features
 
-*   **User Authentication:** Register new accounts and log in.
-*   **Text Management:**
-    *   Add new texts by typing directly or uploading PDF files.
-    *   Edit existing texts.
-    *   Delete texts.
-*   **Typing Practice:** Practice typing the added texts with real-time feedback (implementation details not fully shown, assumed).
-*   **Progress Tracking:** Saves your progress within each text.
-*   **Text Reordering:** On the profile page (`/profile`), you can now click and drag your saved texts to reorder them. The new order is saved automatically.
+- **User Authentication:** Register new accounts and log in.
+- **Text Management:**
+    - Add new texts by typing directly or uploading PDF files.
+    - Edit existing texts.
+    - Delete texts.
+- **Typing Practice:** Practice typing the added texts with real-time feedback (implementation details not fully shown, assumed).
+- **Progress Tracking:** Saves your progress within each text.
+- **Text Reordering:** On the profile page (`/profile`), you can now click and drag your saved texts to reorder them. The new order is saved automatically.

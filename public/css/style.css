@@ -35,7 +35,6 @@
     --warning-color-bg: #fff3cd;
     --warning-color-border: #ffecb5;
 
-
     /* Shadows */
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
@@ -62,7 +61,12 @@ body {
 
 /* --- General Typography & Element Styles --- */
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     margin-top: 1.5rem;
     margin-bottom: 1rem;
     font-weight: 600; /* Slightly bolder */
@@ -70,10 +74,18 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-primary);
 }
 
-h1 { font-size: 2.2rem; }
-h2 { font-size: 1.8rem; }
-h3 { font-size: 1.5rem; }
-h4 { font-size: 1.2rem; }
+h1 {
+    font-size: 2.2rem;
+}
+h2 {
+    font-size: 1.8rem;
+}
+h3 {
+    font-size: 1.5rem;
+}
+h4 {
+    font-size: 1.2rem;
+}
 /* h5, h6 can inherit base size or be slightly larger if needed */
 
 p {
@@ -81,18 +93,21 @@ p {
 }
 
 /* General link styling (excluding navbar links, which have specific rules) */
-a:not(.nav-link):not(.navbar-brand):not(.btn) { /* Updated exclusion */
+a:not(.nav-link):not(.navbar-brand):not(.btn) {
+    /* Updated exclusion */
     color: var(--primary-color);
     text-decoration: none; /* Remove underline by default */
     transition: color var(--transition-fast);
 }
 
-a:not(.nav-link):not(.navbar-brand):not(.btn):hover { /* Updated exclusion */
+a:not(.nav-link):not(.navbar-brand):not(.btn):hover {
+    /* Updated exclusion */
     color: var(--primary-hover);
     text-decoration: underline; /* Add underline on hover for clarity */
 }
 
-ul, ol {
+ul,
+ol {
     padding-left: 2rem; /* Indent lists */
     margin-bottom: 1rem;
 }
@@ -101,7 +116,8 @@ li {
     margin-bottom: 0.5rem; /* Space out list items */
 }
 
-hr { /* Style horizontal rules */
+hr {
+    /* Style horizontal rules */
     border: 0;
     height: 1px;
     background-color: rgba(255, 255, 255, 0.15);
@@ -112,17 +128,21 @@ hr { /* Style horizontal rules */
 
 /* --- Utility Classes (Keep only custom overrides) --- */
 
-.text-muted, .text-body-secondary { /* Combine similar concepts */
+.text-muted,
+.text-body-secondary {
+    /* Combine similar concepts */
     color: var(--text-secondary) !important;
 }
 /* --- End Utility Classes --- */
 
-
 /* Basic Layout Container - Provided by Bootstrap */
 
 /* Replicating Bootstrap Navbar Styles */
-nav.navbar { /* Target the nav element with the .navbar class */
-    background-color: var(--surface-dark); /* Approximate bg-body-tertiary in dark mode */
+nav.navbar {
+    /* Target the nav element with the .navbar class */
+    background-color: var(
+        --surface-dark
+    ); /* Approximate bg-body-tertiary in dark mode */
     padding-top: 0.75rem; /* Slightly more vertical padding */
     padding-bottom: 0.75rem;
     margin-bottom: 1.5rem; /* Replicate mb-4 */
@@ -144,7 +164,6 @@ nav.navbar .container {
     width: 100%; /* Ensure container takes full width within navbar padding */
     /* max-width, padding, margin handled by general .container rule */
 }
-
 
 .navbar-brand {
     padding-top: 0.3125rem;
@@ -173,21 +192,27 @@ nav.navbar .container {
 .nav-link {
     display: block; /* Make the link fill the list item */
     padding: 0.5rem 1rem; /* Padding around the link text */
-    color: var(--text-secondary); /* Use secondary text color for less emphasis */
+    color: var(
+        --text-secondary
+    ); /* Use secondary text color for less emphasis */
     text-decoration: none;
-    transition: color var(--transition-fast), background-color var(--transition-fast);
+    transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast);
     border-radius: 6px; /* Match old nav a style */
 }
 
 .nav-link:hover,
-.nav-link:focus { /* Add focus state for accessibility */
+.nav-link:focus {
+    /* Add focus state for accessibility */
     color: var(--primary-color); /* Use primary color on hover/focus */
     background-color: rgba(187, 134, 252, 0.1); /* Match old nav a hover */
 }
 
 /* Enhanced Main Container */
 /* Note: This 'main' element also has the .container class in header.ejs */
-main.container { /* Target main specifically if it has .container */
+main.container {
+    /* Target main specifically if it has .container */
     background-color: var(--surface-dark);
     /* padding: 2rem; /* This overrides .container padding - remove if using container padding */
     border-radius: 12px;
@@ -205,7 +230,8 @@ main.container { /* Target main specifically if it has .container */
 /* Removed hover effect to prevent potential modal movement */
 
 /* --- Form Styles --- */
-form label { /* Add basic label styling */
+form label {
+    /* Add basic label styling */
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
@@ -213,9 +239,9 @@ form label { /* Add basic label styling */
 
 /* .form-group - Use Bootstrap margin utilities like mb-3 instead */
 
-form input[type="text"],
-form input[type="password"],
-form input[type="file"],
+form input[type='text'],
+form input[type='password'],
+form input[type='file'],
 form textarea {
     background-color: rgba(255, 255, 255, 0.05);
     color: var(--text-primary);
@@ -235,7 +261,10 @@ form textarea:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(187, 134, 252, 0.2);
     background-color: rgba(255, 255, 255, 0.08);
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast); /* Smooth focus transition */
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast),
+        background-color var(--transition-fast); /* Smooth focus transition */
 }
 
 /* Specific styles for the folder name input within its modal */
@@ -253,7 +282,8 @@ form textarea:focus {
 /* Ensure text within modals is dark */
 .modal .modal-title,
 .modal .form-label,
-.modal .modal-body { /* Target body as well for any plain text */
+.modal .modal-body {
+    /* Target body as well for any plain text */
     color: #212529 !important; /* Force dark text color */
 }
 /* --- End Form Styles --- */
@@ -372,7 +402,6 @@ form textarea:focus {
     border-color: var(--danger-hover);
 }
 
-
 /* Full Width Button - Use Bootstrap .w-100 or .d-grid */
 
 /* Centered Button Group - Use Bootstrap d-flex justify-content-center gap-* */
@@ -390,7 +419,9 @@ form textarea:focus {
 
 .alert-danger {
     color: var(--danger-color-text); /* Light red text */
-    background-color: var(--danger-color-bg); /* Semi-transparent red background */
+    background-color: var(
+        --danger-color-bg
+    ); /* Semi-transparent red background */
     border-color: var(--danger-color-border); /* Semi-transparent red border */
 }
 
@@ -433,13 +464,13 @@ form textarea:focus {
 }
 
 /* Flex layout for items */
-.list-group-item.d-flex { /* Target items specifically marked for flex */
+.list-group-item.d-flex {
+    /* Target items specifically marked for flex */
     display: flex !important; /* Use important to override default block if needed */
     justify-content: space-between !important;
     align-items: center !important;
 }
 /* --- End List Group Styles --- */
-
 
 /* Removed old .typing-area-container rule */
 
@@ -471,7 +502,12 @@ form textarea:focus {
     font-size: 1.4rem; /* Slightly smaller than display is fine */
     line-height: 1.6;
     padding: 1rem 1.5rem; /* Standard padding */
-    background-color: rgba(255, 255, 255, 0.05); /* Use standard input background */
+    background-color: rgba(
+        255,
+        255,
+        255,
+        0.05
+    ); /* Use standard input background */
     border: 1px solid rgba(255, 255, 255, 0.1); /* Standard input border */
     color: var(--text-primary); /* Standard text color */
     caret-color: var(--primary-color); /* Keep caret color */
@@ -529,9 +565,18 @@ form textarea:focus {
 
 /* Enhanced Animations */
 @keyframes pulse-success {
-    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0.4); }
-    50% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(129, 199, 132, 0); }
-    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(129, 199, 132, 0); }
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(129, 199, 132, 0.4);
+    }
+    50% {
+        transform: scale(1.02);
+        box-shadow: 0 0 0 10px rgba(129, 199, 132, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(129, 199, 132, 0);
+    }
 }
 
 .completed {
@@ -543,7 +588,6 @@ form textarea:focus {
 }
 
 /* Character Typing Animations moved to practice-animations.css */
-
 
 /* Responsive Navbar Styles - Handled by Bootstrap .navbar-expand-lg */
 
@@ -561,9 +605,9 @@ footer {
 
 /* Footer container specific styles (if needed, but text-align on footer might suffice) */
 footer .container {
-   /* Styles specific to the container within the footer, if any */
-   /* Centering is handled by margin: auto on .container */
-   /* Text alignment handled by text-align on footer */
+    /* Styles specific to the container within the footer, if any */
+    /* Centering is handled by margin: auto on .container */
+    /* Text alignment handled by text-align on footer */
 }
 
 /* --- Specific Component Styles --- */
@@ -593,6 +637,9 @@ footer .container {
     background-clip: content-box; /* Optional: makes border act as padding */
 }
 
-#text-list .list-group-item .actions .dropdown-menu::-webkit-scrollbar-thumb:hover {
+#text-list
+    .list-group-item
+    .actions
+    .dropdown-menu::-webkit-scrollbar-thumb:hover {
     background-color: var(--primary-hover); /* Thumb color on hover */
 }

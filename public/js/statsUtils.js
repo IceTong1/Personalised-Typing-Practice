@@ -38,7 +38,11 @@ export function calculateAccuracy(totalTypedEntries, totalErrors) {
  * @param {string} fullText - The original full text (used for empty text check).
  * @returns {number} - The calculated completion percentage (0-100).
  */
-export function calculateCompletionPercentage(currentOverallCharIndex, totalDisplayLength, fullText) {
+export function calculateCompletionPercentage(
+    currentOverallCharIndex,
+    totalDisplayLength,
+    fullText
+) {
     let percentage = 0;
     // Use the total length of the display structure
     const currentIndex = Math.min(currentOverallCharIndex, totalDisplayLength);
@@ -47,7 +51,7 @@ export function calculateCompletionPercentage(currentOverallCharIndex, totalDisp
         percentage = Math.round((currentIndex / totalDisplayLength) * 100);
     } else {
         // If the text is effectively empty after processing
-        percentage = (fullText.trim() === '') ? 100 : 0;
+        percentage = fullText.trim() === '' ? 100 : 0;
     }
     return Math.min(percentage, 100); // Cap at 100%
 }

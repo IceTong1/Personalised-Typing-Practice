@@ -7,14 +7,17 @@
 export function splitIntoLines(text, targetWidth) {
     const originalLines = text.split('\n'); // 1. Split by original newlines first
     const generatedLines = [];
-    console.log(`Original text has ${originalLines.length} lines based on '\\n'.`);
+    console.log(
+        `Original text has ${originalLines.length} lines based on '\\n'.`
+    );
 
-    originalLines.forEach(originalLine => {
+    originalLines.forEach((originalLine) => {
         const trimmedLine = originalLine.trim();
 
         if (trimmedLine === '') {
-            if (generatedLines.length > 0) { // Avoid leading empty lines
-               generatedLines.push('');
+            if (generatedLines.length > 0) {
+                // Avoid leading empty lines
+                generatedLines.push('');
             }
             return;
         }
@@ -25,7 +28,7 @@ export function splitIntoLines(text, targetWidth) {
             const words = trimmedLine.split(/\s+/);
             let currentWrappedLine = '';
 
-            words.forEach(word => {
+            words.forEach((word) => {
                 if (word === '') return;
 
                 // Check if the word itself is too long
@@ -39,16 +42,17 @@ export function splitIntoLines(text, targetWidth) {
                     for (let i = 0; i < word.length; i += targetWidth) {
                         generatedLines.push(word.substring(i, i + targetWidth));
                     }
+                } else if (currentWrappedLine === '') {
+                    // Word is not too long, and current line is empty
+                    currentWrappedLine = word;
+                } else if (
+                    currentWrappedLine.length + 1 + word.length <=
+                    targetWidth
+                ) {
+                    currentWrappedLine += ` ${word}`;
                 } else {
-                    // Word is not too long, proceed with normal wrapping
-                    if (currentWrappedLine === '') {
-                        currentWrappedLine = word;
-                    } else if (currentWrappedLine.length + 1 + word.length <= targetWidth) {
-                        currentWrappedLine += ' ' + word;
-                    } else {
-                        generatedLines.push(currentWrappedLine);
-                        currentWrappedLine = word;
-                    }
+                    generatedLines.push(currentWrappedLine);
+                    currentWrappedLine = word;
                 }
             });
             if (currentWrappedLine !== '') {
@@ -58,10 +62,12 @@ export function splitIntoLines(text, targetWidth) {
     });
 
     if (text.length > 0 && generatedLines.length === 0) {
-         generatedLines.push(''); // Ensure at least one line if input wasn't empty
+        generatedLines.push(''); // Ensure at least one line if input wasn't empty
     }
 
-    console.log(`Split text into ${generatedLines.length} final display lines.`);
+    console.log(
+        `Split text into ${generatedLines.length} final display lines.`
+    );
     return generatedLines;
 }
 
@@ -80,7 +86,6 @@ export function calculateTotalDisplayLength(displayLines) {
     return totalChars + totalSeparators;
 }
 
-
 /**
  * Determines the display line index and character offset within that line
  * corresponding to a given overall index in the display structure.
@@ -93,15 +98,18 @@ export function getDisplayLineAndOffset(targetIndex, lines) {
     for (let i = 0; i < lines.length; i++) {
         const lineLength = lines[i].length;
         // Separator length is 1 if not the last line
-        const separatorLength = (i < lines.length - 1) ? 1 : 0;
+        const separatorLength = i < lines.length - 1 ? 1 : 0;
 
         // Check if targetIndex falls within the current line's text span
         if (targetIndex < cumulativeLength + lineLength) {
             return { lineIndex: i, charOffset: targetIndex - cumulativeLength };
         }
         // Check if targetIndex falls exactly on the separator after this line
-        if (separatorLength > 0 && targetIndex === cumulativeLength + lineLength) {
-             // Treat as the start of the next line
+        if (
+            separatorLength > 0 &&
+            targetIndex === cumulativeLength + lineLength
+        ) {
+            // Treat as the start of the next line
             return { lineIndex: i + 1, charOffset: 0 };
         }
 

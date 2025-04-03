@@ -1,13 +1,19 @@
 // Mock dependencies BEFORE requiring the controller or db
 jest.mock('better-sqlite3', () => {
-  const mockStatement = { run: jest.fn(), get: jest.fn(), all: jest.fn(), [Symbol.iterator]: jest.fn(function*() {}) };
-  const mockDbInstance = {
-    prepare: jest.fn(() => mockStatement),
-    exec: jest.fn(), close: jest.fn(),
-    pragma: jest.fn(() => []), // Prevent initialization errors in db.js
-    transaction: jest.fn((fn) => jest.fn((...args) => fn(...args))), // Mock transaction
-  };
-  return jest.fn(() => mockDbInstance);
+    const mockStatement = {
+        run: jest.fn(),
+        get: jest.fn(),
+        all: jest.fn(),
+        [Symbol.iterator]: jest.fn(function* mockIterator() {}), // eslint-disable-line no-empty-function
+    };
+    const mockDbInstance = {
+        prepare: jest.fn(() => mockStatement),
+        exec: jest.fn(),
+        close: jest.fn(),
+        pragma: jest.fn(() => []), // Prevent initialization errors in db.js
+        transaction: jest.fn((fn) => jest.fn((...args) => fn(...args))), // Mock transaction
+    };
+    return jest.fn(() => mockDbInstance);
 });
 
 jest.mock('../models/db', () => ({
@@ -33,19 +39,32 @@ jest.mock('../models/db', () => ({
 jest.mock('../middleware/authMiddleware', () => ({
     requireLogin: jest.fn((req, res, next) => {
         if (!req.session) req.session = {};
-        if (!req.session.user) req.session.user = { id: 1, username: 'testuser' };
+        if (!req.session.user)
+            req.session.user = { id: 1, username: 'testuser' };
         next();
     }),
     requireOwnership: jest.fn(async (req, res, next) => {
-        const textId = parseInt(req.params.text_id);
+        const textId = parseInt(req.params.text_id, 10);
         const userId = req.session?.user?.id;
         if (userId === 1 && (textId === 100 || textId === 101)) {
-            req.text = { id: textId, user_id: userId, title: `Mock Text ${textId}`, content: 'Content', progress_index: 0 };
+            req.text = {
+                id: textId,
+                user_id: userId,
+                title: `Mock Text ${textId}`,
+                content: 'Content',
+                progress_index: 0,
+            };
             next();
+        } else if (
+            res &&
+            typeof res.status === 'function' &&
+            typeof res.send === 'function'
+        ) {
+            res.status(403).send('Forbidden');
         } else {
-            if (res && typeof res.status === 'function' && typeof res.send === 'function') {
-                 res.status(403).send('Forbidden');
-            } else { console.error("Mock Middleware Error: Response object not fully functional in requireOwnership."); }
+            console.error(
+                'Mock Middleware Error: Response object not fully functional in requireOwnership.'
+            );
         }
     }),
 }));
@@ -62,12 +81,15 @@ jest.mock('child_process', () => ({
 }));
 
 // --- Require Controller AFTER mocks ---
-const textControllerRouter = require('../controllers/textController');
-const db = require('../models/db');
-const { requireLogin, requireOwnership } = require('../middleware/authMiddleware');
 const fs = require('fs'); // fs is now the mock object
 const tmp = require('tmp');
 const { execFileSync } = require('child_process');
+const textControllerRouter = require('../controllers/textController');
+const db = require('../models/db');
+const {
+    requireLogin, // eslint-disable-line no-unused-vars
+    requireOwnership, // eslint-disable-line no-unused-vars
+} = require('../middleware/authMiddleware');
 
 // Helper to find route handlers
 const findHandler = (method, pathPattern) => {
@@ -80,37 +102,48 @@ const findHandler = (method, pathPattern) => {
         const regex = new RegExp(`^${pattern}$`);
         return methodMatch && regex.test(pathPattern.split('?')[0]); // Test against path part only
     });
-    if (!layer) throw new Error(`Handler for ${method.toUpperCase()} ${pathPattern} not found`);
+    if (!layer)
+        throw new Error(
+            `Handler for ${method.toUpperCase()} ${pathPattern} not found`
+        );
     // Return the actual handler function (often the last in the stack)
     return layer.route.stack[layer.route.stack.length - 1].handle;
 };
 
-
 // Helper to create mock request/response
-const mockRequest = (sessionData = {}, bodyData = {}, queryData = {}, paramsData = {}, fileData = null) => {
-  const user = sessionData.user || { id: 1, username: 'testuser' };
-  return {
-    session: { user, ...sessionData },
-    body: bodyData,
-    query: queryData,
-    params: paramsData,
-    file: fileData,
-    text: null, // Reset potentially attached text
-  };
+const mockRequest = (
+    sessionData = {},
+    bodyData = {},
+    queryData = {},
+    paramsData = {},
+    fileData = null
+) => {
+    const user = sessionData.user || { id: 1, username: 'testuser' };
+    return {
+        session: { user, ...sessionData },
+        body: bodyData,
+        query: queryData,
+        params: paramsData,
+        file: fileData,
+        text: null, // Reset potentially attached text
+    };
 };
 
 const mockResponse = () => {
-  const res = {};
-  res.render = jest.fn().mockReturnValue(res);
-  res.redirect = jest.fn().mockReturnValue(res);
-  res.status = jest.fn().mockReturnValue(res);
-  res.send = jest.fn().mockReturnValue(res);
-  res.json = jest.fn().mockReturnValue(res);
-  res.setHeader = jest.fn().mockReturnValue(res);
-  res.download = jest.fn((path, filename, callback) => { if (callback) callback(null); return res; });
-  res.pipe = jest.fn();
-  res.headersSent = false;
-  return res;
+    const res = {};
+    res.render = jest.fn().mockReturnValue(res);
+    res.redirect = jest.fn().mockReturnValue(res);
+    res.status = jest.fn().mockReturnValue(res);
+    res.send = jest.fn().mockReturnValue(res);
+    res.json = jest.fn().mockReturnValue(res);
+    res.setHeader = jest.fn().mockReturnValue(res);
+    res.download = jest.fn((path, filename, callback) => {
+        if (callback) callback(null);
+        return res;
+    });
+    res.pipe = jest.fn();
+    res.headersSent = false;
+    return res;
 };
 
 // Mock fs.createReadStream return value at module scope
@@ -149,7 +182,7 @@ describe('Text Controller', () => {
             const mockStats = {
                 textsPracticed: 0,
                 totalPracticeTime: '0h 0m',
-                averageAccuracy: 0
+                averageAccuracy: 0,
             };
             // db.get_user_stats.mockReturnValue(mockStats); // Uncomment when implemented
 
@@ -161,7 +194,7 @@ describe('Text Controller', () => {
             expect(res.render).toHaveBeenCalledWith('profile', {
                 user: req.session.user,
                 stats: mockStats, // Expect stats object
-                message: null
+                message: null,
             });
         });
 
@@ -178,12 +211,16 @@ describe('Text Controller', () => {
             expect(res.render).toHaveBeenCalledWith('profile', {
                 user: req.session.user,
                 // Expect stats to be the placeholder object defined in the controller for now
-                stats: { textsPracticed: 0, totalPracticeTime: '0h 0m', averageAccuracy: 0 },
-                message: null
+                stats: {
+                    textsPracticed: 0,
+                    totalPracticeTime: '0h 0m',
+                    averageAccuracy: 0,
+                },
+                message: null,
             });
         });
 
-         test('should handle errors fetching stats', async () => {
+        test('should handle errors fetching stats', async () => {
             req = mockRequest();
             const error = new Error('DB Error fetching stats');
             // Simulate error during stat fetching (when implemented)
@@ -194,14 +231,15 @@ describe('Text Controller', () => {
             // This isn't ideal, but tests the catch block.
             // A better approach is to mock the DB call when stats are implemented.
             const originalRender = res.render;
-            res.render = jest.fn(() => { throw error; });
-
+            res.render = jest.fn(() => {
+                throw error;
+            });
 
             await getProfileHandler(req, res);
 
             expect(res.status).toHaveBeenCalledWith(500);
             // The error message comes from the catch block in the controller
-            expect(res.send).toHaveBeenCalledWith("Error loading profile.");
+            expect(res.send).toHaveBeenCalledWith('Error loading profile.');
             res.render = originalRender; // Restore original mock
         });
     });
@@ -221,7 +259,7 @@ describe('Text Controller', () => {
                 error: null,
                 title: '',
                 content: '',
-                categories: [] // Expect categories array now
+                categories: [], // Expect categories array now
             });
         });
     });
@@ -232,14 +270,24 @@ describe('Text Controller', () => {
 
         // Textarea Input
         test('should add text from textarea successfully', async () => {
-            req = mockRequest({}, { title: 'New Text', content: 'Some content.' });
+            req = mockRequest(
+                {},
+                { title: 'New Text', content: 'Some content.' }
+            );
             db.add_text.mockReturnValue(123);
 
             await postAddTextHandler(req, res);
 
             // expect(requireLogin).toHaveBeenCalledTimes(1); // Removed check
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'New Text', 'Some content.', null); // Added null for category_id
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text added successfully!');
+            expect(db.add_text).toHaveBeenCalledWith(
+                req.session.user.id,
+                'New Text',
+                'Some content.',
+                null
+            ); // Added null for category_id
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text added successfully!'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
 
@@ -248,7 +296,10 @@ describe('Text Controller', () => {
             await postAddTextHandler(req, res);
 
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Title cannot be empty.' }));
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({ error: 'Title cannot be empty.' })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
@@ -257,22 +308,39 @@ describe('Text Controller', () => {
             await postAddTextHandler(req, res);
 
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Please provide text content or upload a PDF file.' }));
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: 'Please provide text content or upload a PDF file.',
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
-         test('should fail if db.add_text fails (textarea)', async () => {
-            req = mockRequest({}, { title: 'DB Fail Text', content: 'Content' });
+        test('should fail if db.add_text fails (textarea)', async () => {
+            req = mockRequest(
+                {},
+                { title: 'DB Fail Text', content: 'Content' }
+            );
             db.add_text.mockReturnValue(-1); // Simulate DB error
             db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'DB Fail Text', 'Content', null); // Added null for category_id
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Failed to save text to the database. Please try again.' }));
+            expect(db.add_text).toHaveBeenCalledWith(
+                req.session.user.id,
+                'DB Fail Text',
+                'Content',
+                null
+            ); // Added null for category_id
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: 'Failed to save text to the database. Please try again.',
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
-
 
         // PDF Input
         const mockPdfFile = {
@@ -280,7 +348,7 @@ describe('Text Controller', () => {
             originalname: 'test.pdf',
             mimetype: 'application/pdf',
             buffer: Buffer.from('mock pdf content'), // Simulate file buffer from memoryStorage
-            size: 12345
+            size: 12345,
         };
 
         test('should add text from PDF successfully', async () => {
@@ -293,11 +361,27 @@ describe('Text Controller', () => {
             await postAddTextHandler(req, res);
 
             expect(tmp.tmpNameSync).toHaveBeenCalled();
-            expect(fs.writeFileSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf', mockPdfFile.buffer);
-            expect(execFileSync).toHaveBeenCalledWith('pdftotext', ['-enc', 'UTF-8', '/tmp/mock-temp-file.pdf', '-'], { encoding: 'utf8' });
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'PDF Text', cleanedText, null); // Added null for category_id
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text added successfully!');
+            expect(fs.writeFileSync).toHaveBeenCalledWith(
+                '/tmp/mock-temp-file.pdf',
+                mockPdfFile.buffer
+            );
+            expect(execFileSync).toHaveBeenCalledWith(
+                'pdftotext',
+                ['-enc', 'UTF-8', '/tmp/mock-temp-file.pdf', '-'],
+                { encoding: 'utf8' }
+            );
+            expect(db.add_text).toHaveBeenCalledWith(
+                req.session.user.id,
+                'PDF Text',
+                cleanedText,
+                null
+            ); // Added null for category_id
+            expect(fs.unlinkSync).toHaveBeenCalledWith(
+                '/tmp/mock-temp-file.pdf'
+            );
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text added successfully!'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
 
@@ -307,17 +391,31 @@ describe('Text Controller', () => {
 
             expect(execFileSync).not.toHaveBeenCalled();
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Title cannot be empty.' }));
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({ error: 'Title cannot be empty.' })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
         test('should fail if both PDF and content provided', async () => {
-            req = mockRequest({}, { title: 'Both Inputs', content: 'Textarea content' }, {}, {}, mockPdfFile);
+            req = mockRequest(
+                {},
+                { title: 'Both Inputs', content: 'Textarea content' },
+                {},
+                {},
+                mockPdfFile
+            );
             await postAddTextHandler(req, res);
 
             expect(execFileSync).not.toHaveBeenCalled();
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Please provide text content OR upload a PDF, not both.' }));
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: 'Please provide text content OR upload a PDF, not both.',
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
@@ -325,7 +423,9 @@ describe('Text Controller', () => {
             req = mockRequest({}, { title: 'PDF Error' }, {}, {}, mockPdfFile);
             const error = new Error('Command not found');
             error.code = 'ENOENT';
-            execFileSync.mockImplementation(() => { throw error; });
+            execFileSync.mockImplementation(() => {
+                throw error;
+            });
 
             await postAddTextHandler(req, res);
 
@@ -333,24 +433,44 @@ describe('Text Controller', () => {
             expect(fs.writeFileSync).toHaveBeenCalled();
             expect(execFileSync).toHaveBeenCalled();
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: expect.stringContaining('pdftotext command not found') }));
+            expect(fs.unlinkSync).toHaveBeenCalledWith(
+                '/tmp/mock-temp-file.pdf'
+            );
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: expect.stringContaining(
+                        'pdftotext command not found'
+                    ),
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
         test('should fail if pdftotext extraction fails (other error)', async () => {
             req = mockRequest({}, { title: 'PDF Error' }, {}, {}, mockPdfFile);
             const error = new Error('PDF processing failed');
-            execFileSync.mockImplementation(() => { throw error; });
+            execFileSync.mockImplementation(() => {
+                throw error;
+            });
 
             await postAddTextHandler(req, res);
 
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: expect.stringContaining('Error processing PDF with pdftotext') }));
+            expect(fs.unlinkSync).toHaveBeenCalledWith(
+                '/tmp/mock-temp-file.pdf'
+            );
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: expect.stringContaining(
+                        'Error processing PDF with pdftotext'
+                    ),
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
-         test('should fail if extracted PDF text is empty', async () => {
+        test('should fail if extracted PDF text is empty', async () => {
             req = mockRequest({}, { title: 'Empty PDF' }, {}, {}, mockPdfFile);
             execFileSync.mockReturnValue('');
 
@@ -358,13 +478,26 @@ describe('Text Controller', () => {
 
             expect(execFileSync).toHaveBeenCalled();
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: expect.stringContaining('Could not extract text') }));
+            expect(fs.unlinkSync).toHaveBeenCalledWith(
+                '/tmp/mock-temp-file.pdf'
+            );
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: expect.stringContaining('Could not extract text'),
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
-         test('should fail if db.add_text fails (PDF)', async () => {
-            req = mockRequest({}, { title: 'PDF DB Fail' }, {}, {}, mockPdfFile);
+        test('should fail if db.add_text fails (PDF)', async () => {
+            req = mockRequest(
+                {},
+                { title: 'PDF DB Fail' },
+                {},
+                {},
+                mockPdfFile
+            );
             execFileSync.mockReturnValue('Some extracted text.');
             db.add_text.mockReturnValue(-1);
             db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
@@ -372,9 +505,21 @@ describe('Text Controller', () => {
             await postAddTextHandler(req, res);
 
             expect(execFileSync).toHaveBeenCalled();
-            expect(db.add_text).toHaveBeenCalledWith(req.session.user.id, 'PDF DB Fail', 'Some extracted text.', null); // Added null for category_id
-            expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/mock-temp-file.pdf');
-            expect(res.render).toHaveBeenCalledWith('add_text', expect.objectContaining({ error: 'Failed to save text to the database. Please try again.' }));
+            expect(db.add_text).toHaveBeenCalledWith(
+                req.session.user.id,
+                'PDF DB Fail',
+                'Some extracted text.',
+                null
+            ); // Added null for category_id
+            expect(fs.unlinkSync).toHaveBeenCalledWith(
+                '/tmp/mock-temp-file.pdf'
+            );
+            expect(res.render).toHaveBeenCalledWith(
+                'add_text',
+                expect.objectContaining({
+                    error: 'Failed to save text to the database. Please try again.',
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
     });
@@ -387,18 +532,26 @@ describe('Text Controller', () => {
             const textId = 100;
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             // Simulate middleware attaching text
-            req.text = { id: textId, user_id: 1, title: `Mock Text ${textId}`, content: 'Content', progress_index: 0 };
+            req.text = {
+                id: textId,
+                user_id: 1,
+                title: `Mock Text ${textId}`,
+                content: 'Content',
+                progress_index: 0,
+            };
             db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for GET
             await getEditTextHandler(req, res);
 
             // expect(requireLogin).toHaveBeenCalledTimes(1); // Removed
             // expect(requireOwnership).toHaveBeenCalledTimes(1); // Removed
-            expect(db.get_all_categories_flat).toHaveBeenCalledWith(req.session.user.id); // Check category fetch
+            expect(db.get_all_categories_flat).toHaveBeenCalledWith(
+                req.session.user.id
+            ); // Check category fetch
             expect(res.render).toHaveBeenCalledWith('edit_text', {
                 user: req.session.user,
                 text: req.text, // Check the text attached by middleware mock
                 categories: [], // Expect categories array
-                error: null
+                error: null,
             });
         });
 
@@ -413,107 +566,178 @@ describe('Text Controller', () => {
 
         test('should update text successfully', async () => {
             const textId = 100;
-            req = mockRequest({}, { title: 'Updated Title', content: 'Updated Content' }, {}, { text_id: textId.toString() });
+            req = mockRequest(
+                {},
+                { title: 'Updated Title', content: 'Updated Content' },
+                {},
+                { text_id: textId.toString() }
+            );
             db.update_text.mockReturnValue(true);
-             // Simulate middleware attaching text
-            req.text = { id: textId, user_id: 1, title: 'Old Title', content: 'Old Content' };
+            // Simulate middleware attaching text
+            req.text = {
+                id: textId,
+                user_id: 1,
+                title: 'Old Title',
+                content: 'Old Content',
+            };
 
             await postEditTextHandler(req, res);
 
             // expect(requireOwnership).toHaveBeenCalledTimes(1); // Removed
-            expect(db.update_text).toHaveBeenCalledWith(textId.toString(), 'Updated Title', 'Updated Content', null); // Added null for category_id
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text updated successfully!');
+            expect(db.update_text).toHaveBeenCalledWith(
+                textId.toString(),
+                'Updated Title',
+                'Updated Content',
+                null
+            ); // Added null for category_id
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text updated successfully!'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
 
         test('should fail if title is empty', async () => {
             const textId = 100;
-            req = mockRequest({}, { title: '', content: 'Content' }, {}, { text_id: textId.toString() });
+            req = mockRequest(
+                {},
+                { title: '', content: 'Content' },
+                {},
+                { text_id: textId.toString() }
+            );
             // Simulate middleware attaching text for re-render
             req.text = { id: textId, title: '', content: 'Content' };
 
             await postEditTextHandler(req, res);
 
             expect(db.update_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('edit_text', expect.objectContaining({
-                error: 'Title and content cannot be empty.',
-                text: expect.objectContaining({ id: textId.toString(), title: '', content: 'Content' })
-            }));
+            expect(res.render).toHaveBeenCalledWith(
+                'edit_text',
+                expect.objectContaining({
+                    error: 'Title and content cannot be empty.',
+                    text: expect.objectContaining({
+                        id: textId.toString(),
+                        title: '',
+                        content: 'Content',
+                    }),
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
         test('should fail if content is empty', async () => {
             const textId = 100;
-            req = mockRequest({}, { title: 'Title', content: '' }, {}, { text_id: textId.toString() });
+            req = mockRequest(
+                {},
+                { title: 'Title', content: '' },
+                {},
+                { text_id: textId.toString() }
+            );
             req.text = { id: textId, title: 'Title', content: '' };
 
             await postEditTextHandler(req, res);
 
             expect(db.update_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('edit_text', expect.objectContaining({
-                error: 'Title and content cannot be empty.',
-                 text: expect.objectContaining({ id: textId.toString(), title: 'Title', content: '' })
-            }));
+            expect(res.render).toHaveBeenCalledWith(
+                'edit_text',
+                expect.objectContaining({
+                    error: 'Title and content cannot be empty.',
+                    text: expect.objectContaining({
+                        id: textId.toString(),
+                        title: 'Title',
+                        content: '',
+                    }),
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
         test('should fail if db.update_text returns false', async () => {
             const textId = 100;
-            req = mockRequest({}, { title: 'Updated Title', content: 'Updated Content' }, {}, { text_id: textId.toString() });
+            req = mockRequest(
+                {},
+                { title: 'Updated Title', content: 'Updated Content' },
+                {},
+                { text_id: textId.toString() }
+            );
             db.update_text.mockReturnValue(false);
-            req.text = { id: textId, title: 'Updated Title', content: 'Updated Content' };
+            req.text = {
+                id: textId,
+                title: 'Updated Title',
+                content: 'Updated Content',
+            };
 
             await postEditTextHandler(req, res);
 
             expect(db.update_text).toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith('edit_text', expect.objectContaining({
-                error: 'Failed to update text. Please try again.',
-                 text: expect.objectContaining({ id: textId.toString(), title: 'Updated Title', content: 'Updated Content' })
-            }));
+            expect(res.render).toHaveBeenCalledWith(
+                'edit_text',
+                expect.objectContaining({
+                    error: 'Failed to update text. Please try again.',
+                    text: expect.objectContaining({
+                        id: textId.toString(),
+                        title: 'Updated Title',
+                        content: 'Updated Content',
+                    }),
+                })
+            );
             expect(res.redirect).not.toHaveBeenCalled();
         });
     });
 
     // --- POST /delete_text/:text_id ---
     describe('POST /delete_text/:text_id', () => {
-        const postDeleteTextHandler = findHandler('post', '/delete_text/:text_id');
+        const postDeleteTextHandler = findHandler(
+            'post',
+            '/delete_text/:text_id'
+        );
 
         test('should delete text successfully', async () => {
             const textId = 100;
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             db.delete_text.mockReturnValue(true);
-            req.text = { id: textId, user_id: 1 }; // Simulate middleware
+            req.text = { id: textId, user_id: 1, category_id: null }; // Simulate middleware
 
             await postDeleteTextHandler(req, res);
 
             // expect(requireOwnership).toHaveBeenCalledTimes(1); // Removed
             expect(db.delete_text).toHaveBeenCalledWith(textId.toString());
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text deleted successfully!');
+            // Expect URL encoded by buildRedirectUrl (spaces as +, ! as %21)
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text+deleted+successfully%21'
+            );
         });
 
         test('should redirect with message if db.delete_text returns false', async () => {
             const textId = 100;
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             db.delete_text.mockReturnValue(false);
-            req.text = { id: textId, user_id: 1 }; // Simulate middleware
+            req.text = { id: textId, user_id: 1, category_id: 5 }; // Simulate middleware
 
             await postDeleteTextHandler(req, res);
 
             expect(db.delete_text).toHaveBeenCalledWith(textId.toString());
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Could not delete text. It might have already been removed.');
+            // Expect URL encoded by buildRedirectUrl (spaces as +, . as is)
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Could+not+delete+text.+It+might+have+already+been+removed.&category_id=5'
+            );
         });
 
-         test('should handle unexpected errors during deletion', async () => {
+        test('should handle unexpected errors during deletion', async () => {
             const textId = 100;
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             const error = new Error('DB Error');
-            db.delete_text.mockImplementation(() => { throw error; });
+            db.delete_text.mockImplementation(() => {
+                throw error;
+            });
             req.text = { id: textId, user_id: 1 }; // Simulate middleware
 
             await postDeleteTextHandler(req, res);
 
             expect(db.delete_text).toHaveBeenCalledWith(textId.toString());
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=An error occurred while deleting the text.');
+            // Expect URL encoded by buildRedirectUrl (spaces as +, . as is)
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=An+error+occurred+while+deleting+the+text.'
+            );
         });
     });
 
@@ -523,7 +747,13 @@ describe('Text Controller', () => {
 
         test('should render practice view with text data and progress', async () => {
             const textId = 100;
-            const mockTextWithProgress = { id: textId, user_id: 1, title: 'Practice Text', content: 'Practice content.', progress_index: 10 };
+            const mockTextWithProgress = {
+                id: textId,
+                user_id: 1,
+                title: 'Practice Text',
+                content: 'Practice content.',
+                progress_index: 10,
+            };
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             db.get_text.mockReturnValue(mockTextWithProgress);
             req.text = mockTextWithProgress; // Simulate middleware
@@ -531,10 +761,13 @@ describe('Text Controller', () => {
             await getPracticeHandler(req, res);
 
             // expect(requireOwnership).toHaveBeenCalledTimes(1); // Removed
-            expect(db.get_text).toHaveBeenCalledWith(textId.toString(), req.session.user.id);
+            expect(db.get_text).toHaveBeenCalledWith(
+                textId.toString(),
+                req.session.user.id
+            );
             expect(res.render).toHaveBeenCalledWith('practice', {
                 user: req.session.user,
-                text: mockTextWithProgress
+                text: mockTextWithProgress,
             });
         });
 
@@ -546,29 +779,41 @@ describe('Text Controller', () => {
 
             await getPracticeHandler(req, res);
 
-            expect(db.get_text).toHaveBeenCalledWith(textId.toString(), req.session.user.id);
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text not found.');
+            expect(db.get_text).toHaveBeenCalledWith(
+                textId.toString(),
+                req.session.user.id
+            );
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text not found.'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
 
-         test('should handle errors fetching text for practice', async () => {
+        test('should handle errors fetching text for practice', async () => {
             const textId = 100;
             req = mockRequest({}, {}, {}, { text_id: textId.toString() });
             const error = new Error('DB Error');
-            db.get_text.mockImplementation(() => { throw error; });
+            db.get_text.mockImplementation(() => {
+                throw error;
+            });
             req.text = { id: textId, user_id: 1 }; // Simulate middleware
 
             await getPracticeHandler(req, res);
 
-            expect(db.get_text).toHaveBeenCalledWith(textId.toString(), req.session.user.id);
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Error loading practice text.');
+            expect(db.get_text).toHaveBeenCalledWith(
+                textId.toString(),
+                req.session.user.id
+            );
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Error loading practice text.'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
     });
 
     // --- POST /save_progress ---
     describe('POST /save_progress', () => {
-        const postSaveProgressHandler = findHandler('post', '/save_progress');
+        const postSaveProgressHandler = findHandler('post', '/api/progress'); // Updated path
 
         test('should save progress successfully', async () => {
             req = mockRequest({}, { text_id: '100', progress_index: '55' });
@@ -577,7 +822,11 @@ describe('Text Controller', () => {
             await postSaveProgressHandler(req, res);
 
             // expect(requireLogin).toHaveBeenCalledTimes(1); // Removed
-            expect(db.save_progress).toHaveBeenCalledWith(req.session.user.id, 100, 55);
+            expect(db.save_progress).toHaveBeenCalledWith(
+                req.session.user.id,
+                100,
+                55
+            );
             expect(res.status).toHaveBeenCalledWith(200);
             expect(res.json).toHaveBeenCalledWith({ success: true });
         });
@@ -588,7 +837,10 @@ describe('Text Controller', () => {
 
             expect(db.save_progress).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Missing required data.' });
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                message: 'Missing required data.',
+            });
         });
 
         test('should fail if progress_index is missing', async () => {
@@ -597,7 +849,10 @@ describe('Text Controller', () => {
 
             expect(db.save_progress).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Missing required data.' });
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                message: 'Missing required data.',
+            });
         });
 
         test('should fail if progress_index is not a number', async () => {
@@ -606,18 +861,23 @@ describe('Text Controller', () => {
 
             expect(db.save_progress).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Invalid data.' });
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                message: 'Invalid data.',
+            });
         });
 
-         test('should fail if progress_index is negative', async () => {
+        test('should fail if progress_index is negative', async () => {
             req = mockRequest({}, { text_id: '100', progress_index: '-10' });
             await postSaveProgressHandler(req, res);
 
             expect(db.save_progress).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Invalid data.' });
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                message: 'Invalid data.',
+            });
         });
-
 
         test('should fail if db.save_progress returns false', async () => {
             req = mockRequest({}, { text_id: '100', progress_index: '55' });
@@ -625,21 +885,37 @@ describe('Text Controller', () => {
 
             await postSaveProgressHandler(req, res);
 
-            expect(db.save_progress).toHaveBeenCalledWith(req.session.user.id, 100, 55);
+            expect(db.save_progress).toHaveBeenCalledWith(
+                req.session.user.id,
+                100,
+                55
+            );
             expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Database error saving progress.' });
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                message: 'Database error saving progress.',
+            });
         });
 
-         test('should handle unexpected errors during save', async () => {
+        test('should handle unexpected errors during save', async () => {
             req = mockRequest({}, { text_id: '100', progress_index: '55' });
             const error = new Error('DB Error');
-            db.save_progress.mockImplementation(() => { throw error; });
+            db.save_progress.mockImplementation(() => {
+                throw error;
+            });
 
             await postSaveProgressHandler(req, res);
 
-            expect(db.save_progress).toHaveBeenCalledWith(req.session.user.id, 100, 55);
+            expect(db.save_progress).toHaveBeenCalledWith(
+                req.session.user.id,
+                100,
+                55
+            );
             expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith({ success: false, message: 'Server error saving progress.' });
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                message: 'Server error saving progress.',
+            });
         });
     });
 });

@@ -1,15 +1,31 @@
 /* Character Typing Animations from original style.css */
 
 @keyframes char-correct-pop {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.2); color: #81c784; } /* Pop effect - Using success color variable value */
-    100% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+        color: #81c784;
+    } /* Pop effect - Using success color variable value */
+    100% {
+        transform: scale(1);
+    }
 }
 
 @keyframes char-incorrect-shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-3px); color: #e57373; } /* Shake effect - Using error color variable value */
-    75% { transform: translateX(3px); color: #e57373; }
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-3px);
+        color: #e57373;
+    } /* Shake effect - Using error color variable value */
+    75% {
+        transform: translateX(3px);
+        color: #e57373;
+    }
 }
 
 /* Apply animations to the temporary effect classes */
@@ -64,7 +80,8 @@
 
 /* --- Custom Input Area Styles --- */
 
-#typing-input-area { /* Updated ID */
+#typing-input-area {
+    /* Updated ID */
     /* Inherits p-3, bg-body-tertiary, rounded from HTML */
     position: relative; /* Needed for absolute positioning of cursor */
     cursor: text; /* Indicate it's an input area */
@@ -75,10 +92,9 @@
 
 /* Optional: Style for when the input area is focused */
 #typing-input-area.focused {
-     /* Example: Add a subtle border or shadow */
-     /* box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); */
+    /* Example: Add a subtle border or shadow */
+    /* box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); */
 }
-
 
 #typing-input-content {
     position: absolute;
@@ -114,15 +130,19 @@
     transition: opacity 0.1s ease-out; /* Smooth fade for focus/blur */
 }
 
-#typing-input-area.focused .typing-cursor { /* Updated ID */
+#typing-input-area.focused .typing-cursor {
+    /* Updated ID */
     opacity: 1; /* Show cursor when container is 'focused' */
 }
 
-
 @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
 }
-
 
 /* Removed old animations */
