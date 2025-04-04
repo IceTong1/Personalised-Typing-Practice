@@ -113,8 +113,14 @@ function createInputHandler(dependencies) {
             lineCompleteSound.play().catch((e) => console.log('Sound play interrupted'));
             practiceState.currentDisplayLineIndex++;
             if (practiceState.currentDisplayLineIndex < practiceState.lines.length) {
-                practiceState.currentOverallCharIndex++;
+                practiceState.currentOverallCharIndex++; // Account for the line break/space
             }
+            // --- FIX: Clear the hidden input and state before rendering the new line ---
+            if (practiceState.hiddenInput) {
+                practiceState.hiddenInput.value = '';
+            }
+            practiceState.currentInputValue = '';
+            // --- End Fix ---
             renderLine(practiceState.currentDisplayLineIndex); // Call external function passed as dependency
             return true;
         }
