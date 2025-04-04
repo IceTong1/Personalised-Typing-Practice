@@ -39,7 +39,7 @@
                             <option value="root">-- Root --</option>
                             <% if (typeof categories !== 'undefined' && categories.length > 0) { %>
                                 <% categories.forEach(category => { %>
-                                    <option value="<%= category.id %>">
+                                    <option value="<%= category.id %>"<%= (typeof selectedFolderId !== 'undefined' && selectedFolderId === category.id) ? ' selected' : '' %>>
                                         <% for(let i = 0; i < category.level; i++) { %>&nbsp;&nbsp;&nbsp;<% } %>
                                         <%= category.path_name %>
                                     </option>

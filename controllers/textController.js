@@ -2,7 +2,8 @@
 const express = require('express');
 
 const router = express.Router(); // Create a new router object
-const multer = require('multer'); // Middleware for handling multipart/form-data (file uploads)
+// const multer = require('multer'); // No longer needed at top level? Let's re-add it.
+const multer = require('multer'); // Ensure multer is required before use
 // const pdfParse = require('pdf-parse'); // No longer needed (using pdftotext)
 const { execFileSync } = require('child_process'); // For running external commands synchronously (pdftotext)
 const fs = require('fs'); // File system module for writing/deleting temporary files
@@ -13,6 +14,7 @@ const {
     requireOwnership,
 } = require('../middleware/authMiddleware'); // Import authentication middleware
 const db = require('../models/db'); // Import database functions from the model
+const { cleanupText, processPdfUpload } = require('../utils/textProcessing'); // Import text utils
 
 // --- Helper Functions ---
 
@@ -36,76 +38,70 @@ function buildRedirectUrl(basePath, params) {
 /**
  * Cleans text extracted from PDFs or submitted via textarea.
  * Handles common accent issues from pdftotext and normalizes Unicode.
- * @param {string | null | undefined} inputText The text to clean.
- * @returns {string} The cleaned and normalized text.
- */
-const cleanupText = (inputText) => {
-    if (!inputText) return ''; // Handle null/undefined input gracefully
 
-    // Match either Unicode representation using OR (|) instead of character class []
-    const acute = /\u00B4|\u0301/;
-    const grave = /`|\u0300/;
-    const circumflex = /\u005E|\u0302/;
-    const cedilla = /\u00B8|\u0327/;
-    const diaeresis = /\u00A8|\u0308/;
+// Helper function to process PDF upload using pdftotext
+async function processPdfUpload(uploadedFile) {
+    if (process.env.NODE_ENV === 'development')
+        console.log(
+            `Processing uploaded PDF with pdftotext: ${uploadedFile.originalname}`
+        );
+    let tempFilePath = null;
+    try {
+        tempFilePath = tmp.tmpNameSync({ postfix: '.pdf' });
+        if (process.env.NODE_ENV === 'development')
+            console.log(`Created temp file: ${tempFilePath}`);
 
-    let cleaned = inputText;
+        fs.writeFileSync(tempFilePath, uploadedFile.buffer);
 
-    // Pass 1: Fix Accent OptionalSpace Letter -> Precomposed
-    cleaned = cleaned
-        .replace(new RegExp(`${acute.source}\\s*e`, 'gi'), 'é')
-        .replace(new RegExp(`${grave.source}\\s*a`, 'gi'), 'à')
-        .replace(new RegExp(`${grave.source}\\s*e`, 'gi'), 'è')
-        .replace(new RegExp(`${grave.source}\\s*u`, 'gi'), 'ù')
-        .replace(new RegExp(`${circumflex.source}\\s*a`, 'gi'), 'â')
-        .replace(new RegExp(`${circumflex.source}\\s*e`, 'gi'), 'ê')
-        .replace(new RegExp(`${circumflex.source}\\s*i`, 'gi'), 'î')
-        .replace(new RegExp(`${circumflex.source}\\s*o`, 'gi'), 'ô')
-        .replace(new RegExp(`${circumflex.source}\\s*u`, 'gi'), 'û')
-        .replace(new RegExp(`${cedilla.source}\\s*c`, 'gi'), 'ç')
-        .replace(new RegExp(`${diaeresis.source}\\s*e`, 'gi'), 'ë')
-        .replace(new RegExp(`${diaeresis.source}\\s*i`, 'gi'), 'ï')
-        .replace(new RegExp(`${diaeresis.source}\\s*u`, 'gi'), 'ü');
+        const extractedText = execFileSync(
+            'pdftotext',
+            ['-enc', 'UTF-8', tempFilePath, '-'],
+            { encoding: 'utf8' }
+        ).trim();
+        if (process.env.NODE_ENV === 'development')
+            console.log(
+                `Extracted ${extractedText.length} characters using pdftotext.`
+            );
 
-    // Pass 2: Fix Letter OptionalSpace Accent -> Precomposed
-    cleaned = cleaned
-        .replace(new RegExp(`a\\s*${grave.source}`, 'gi'), 'à')
-        .replace(new RegExp(`a\\s*${circumflex.source}`, 'gi'), 'â')
-        .replace(new RegExp(`c\\s*${cedilla.source}`, 'gi'), 'ç')
-        .replace(new RegExp(`e\\s*${acute.source}`, 'gi'), 'é')
-        .replace(new RegExp(`e\\s*${grave.source}`, 'gi'), 'è')
-        .replace(new RegExp(`e\\s*${circumflex.source}`, 'gi'), 'ê')
-        .replace(new RegExp(`e\\s*${diaeresis.source}`, 'gi'), 'ë')
-        .replace(new RegExp(`i\\s*${circumflex.source}`, 'gi'), 'î')
-        .replace(new RegExp(`i\\s*${diaeresis.source}`, 'gi'), 'ï')
-        .replace(new RegExp(`o\\s*${circumflex.source}`, 'gi'), 'ô')
-        .replace(new RegExp(`u\\s*${grave.source}`, 'gi'), 'ù')
-        .replace(new RegExp(`u\\s*${circumflex.source}`, 'gi'), 'û')
-        .replace(new RegExp(`u\\s*${diaeresis.source}`, 'gi'), 'ü');
-
-    // Replace typographic apostrophe with standard apostrophe
-    cleaned = cleaned.replace(/’/g, "'");
-
-    // Final Unicode normalization (NFC form)
-    const normalizedText = cleaned.normalize('NFC');
-    return normalizedText;
-};
+        if (!extractedText) {
+            // Throw specific error for empty extraction
+            throw new Error(
+                'Could not extract text using pdftotext. PDF might be empty or image-based.'
+            );
+        }
+        return extractedText; // Return raw extracted text
+    } catch (execError) {
+        console.error('Error executing pdftotext:', execError);
+        if (execError.code === 'ENOENT') {
+            throw new Error(
+                'Error processing PDF: pdftotext command not found. Please ensure Poppler utilities are installed and in the system PATH.'
+            );
+        } else if (execError.message.includes('Could not extract text')) {
+            // Re-throw the specific error from above
+            throw execError;
+        } else {
+            throw new Error(`Error processing PDF with pdftotext: ${execError.message}`);
+        }
+    } finally {
+        if (tempFilePath && fs.existsSync(tempFilePath)) {
+            try {
+                fs.unlinkSync(tempFilePath);
+                if (process.env.NODE_ENV === 'development')
+                    console.log(`Cleaned up temp file: ${tempFilePath}`);
+            } catch (cleanupError) {
+                console.error(
+                    `Error cleaning up temp file ${tempFilePath}:`,
+                    cleanupError
+                );
+            }
+        }
+    }
+}
 
 // --- Multer Configuration for PDF Uploads ---
 // Configure where and how uploaded files are stored
-const storage = multer.memoryStorage(); // Store the uploaded file as a Buffer in memory
-const upload = multer({
-    storage, // Use the memory storage engine
-    fileFilter: (req, file, cb) => {
-        // Function to control which files are accepted
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true); // Accept the file if it's a PDF
-        } else {
-            // Reject the file if it's not a PDF, passing an error message
-            cb(new Error('Only PDF files are allowed!'), false);
-        }
-    },
-}); // 'upload' is now middleware configured for single PDF file uploads
+// const storage = multer.memoryStorage(); // Define storage inline below
+// Removed definition from here, moved below
 
 // --- Text Management Routes ---
 
@@ -209,6 +205,18 @@ router.get('/add_text', requireLogin, (req, res) => {
                 `Fetching categories for add_text dropdown for user ${userId}: ${categories.length} found.`
             );
 
+        // Get potential folderId from query parameters to pre-select dropdown
+        const requestedFolderId = req.query.folderId;
+        let selectedFolderId = null;
+        if (requestedFolderId) {
+            const parsedId = parseInt(requestedFolderId, 10);
+            if (!isNaN(parsedId)) {
+                selectedFolderId = parsedId;
+                if (process.env.NODE_ENV === 'development')
+                    console.log(`Pre-selecting folder ID: ${selectedFolderId}`);
+            }
+        }
+
         // Render the 'add_text.ejs' view
         res.render('add_text', {
             user: req.session.user, // Pass user data
@@ -216,6 +224,7 @@ router.get('/add_text', requireLogin, (req, res) => {
             title: '', // Empty title for new text
             content: '', // Empty content for new text
             categories, // Pass the flat list of categories
+            selectedFolderId, // Pass the ID for pre-selection
         });
     } catch (error) {
         console.error(
@@ -223,12 +232,14 @@ router.get('/add_text', requireLogin, (req, res) => {
             error
         );
         // Render with an error message, but maybe without categories
+        // Also pass selectedFolderId (likely null here) in case it's needed
         res.render('add_text', {
             user: req.session.user,
             error: 'Could not load folder list.',
             title: '',
             content: '',
             categories: [], // Send empty array
+            selectedFolderId: null, // Explicitly null in error case
         });
     }
 });
@@ -241,10 +252,22 @@ router.get('/add_text', requireLogin, (req, res) => {
  *   - `upload.single('pdfFile')`: Processes a potential single file upload with the field name 'pdfFile'.
  *                                  Adds `req.file` (if uploaded) and `req.body` (for text fields).
  */
+
+// Define file filter here, just before it's used in the route below
+const pdfFileFilter = (req, file, cb) => {
+    // Function to control which files are accepted
+    if (file.mimetype === 'application/pdf') {
+        cb(null, true); // Accept the file if it's a PDF
+    } else {
+        // Reject the file if it's not a PDF, passing an error message
+        cb(new Error('Only PDF files are allowed!'), false);
+    }
+};
 router.post(
     '/add_text',
     requireLogin,
-    upload.single('pdfFile'),
+    // Define and use multer middleware inline
+    multer({ storage: multer.memoryStorage(), fileFilter: pdfFileFilter }).single('pdfFile'),
     async (req, res) => {
         // Extract title from form body
         // Extract title, content, and category_id from form body
@@ -300,79 +323,25 @@ router.post(
             let textToSave = content; // Default to textarea content
 
             // If a file was uploaded, process it using pdftotext
+
+            // If a file was uploaded, process it using the helper function
             if (uploadedFile) {
-                if (process.env.NODE_ENV === 'development')
-                    console.log(
-                        `Processing uploaded PDF with pdftotext: ${uploadedFile.originalname}`
-                    );
-                let tempFilePath = null; // Variable to hold the temporary file path
                 try {
-                    // 1. Create a unique temporary file path with a .pdf extension
-                    tempFilePath = tmp.tmpNameSync({ postfix: '.pdf' });
-                    if (process.env.NODE_ENV === 'development')
-                        console.log(`Created temp file: ${tempFilePath}`);
-
-                    // 2. Write the PDF data (from memory buffer) to the temporary file
-                    fs.writeFileSync(tempFilePath, uploadedFile.buffer);
-
-                    // 3. Execute the 'pdftotext' command-line tool
-                    const extractedText = execFileSync(
-                        'pdftotext',
-                        ['-enc', 'UTF-8', tempFilePath, '-'],
-                        { encoding: 'utf8' }
-                    ).trim();
-                    if (process.env.NODE_ENV === 'development')
-                        console.log(
-                            `Extracted ${extractedText.length} characters using pdftotext.`
-                        );
-
-                    // Assign raw extracted text to textToSave. Cleanup happens later.
-                    textToSave = extractedText;
-
-                    // Check if raw extraction resulted in empty content *before* cleanup
-                    if (!textToSave) {
-                        renderArgs.error =
-                            'Could not extract text using pdftotext. PDF might be empty or image-based.';
-                        // Cleanup temp file before returning error
-                        if (tempFilePath) fs.unlinkSync(tempFilePath);
-                        return res.render('add_text', renderArgs);
+                    // Assign the result to the existing textToSave variable
+                    textToSave = await processPdfUpload(uploadedFile);
+                } catch (pdfError) {
+                    // Handle errors from PDF processing
+                    renderArgs.error = pdfError.message; // Use the error message from the helper
+                    // Re-fetch categories before rendering error
+                    try {
+                        renderArgs.categories = db.get_all_categories_flat(userId);
+                    } catch (fetchErr) {
+                        console.error('Error re-fetching categories for PDF error render:', fetchErr);
+                        renderArgs.categories = []; // Default to empty if fetch fails
                     }
-                    // If extraction was successful, textToSave now holds the raw extracted text,
-                    // which will be passed to the common cleanupText function later.
-                } catch (execError) {
-                    // Handle errors during pdftotext execution
-                    console.error('Error executing pdftotext:', execError);
-                    // Check if the error is because the command wasn't found
-                    if (execError.code === 'ENOENT') {
-                        renderArgs.error =
-                            'Error processing PDF: pdftotext command not found. Please ensure Poppler utilities are installed and in the system PATH.';
-                    } else {
-                        // Otherwise, show a generic error message
-                        renderArgs.error = `Error processing PDF with pdftotext: ${execError.message}`;
-                    }
-                    // Cleanup temp file before returning error
-                    if (tempFilePath && fs.existsSync(tempFilePath))
-                        fs.unlinkSync(tempFilePath);
                     return res.render('add_text', renderArgs);
-                } finally {
-                    // 4. Clean up the temporary file regardless of success or failure
-                    if (tempFilePath && fs.existsSync(tempFilePath)) {
-                        try {
-                            fs.unlinkSync(tempFilePath);
-                            if (process.env.NODE_ENV === 'development')
-                                console.log(
-                                    `Cleaned up temp file: ${tempFilePath}`
-                                );
-                        } catch (cleanupError) {
-                            // Log error if cleanup fails, but don't stop the response
-                            console.error(
-                                `Error cleaning up temp file ${tempFilePath}:`,
-                                cleanupError
-                            );
-                        }
-                    }
                 }
-            } // End if(uploadedFile)
+            }
 
             // --- Apply Common Text Cleanup (using function defined at module level) ---
             // Apply cleanup to the text regardless of source (PDF or textarea)

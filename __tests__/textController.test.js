@@ -69,22 +69,24 @@ jest.mock('../middleware/authMiddleware', () => ({
     }),
 }));
 
-// Mock fs separately
-jest.mock('fs');
-
-jest.mock('tmp', () => ({
-    tmpNameSync: jest.fn(() => '/tmp/mock-temp-file.pdf'),
+// Mock the entire text processing utility module
+jest.mock('../utils/textProcessing', () => ({
+    cleanupText: jest.fn((text) => text || ''), // Simple pass-through mock for cleanup
+    processPdfUpload: jest.fn(), // Mock the PDF processing function
 }));
 
-jest.mock('child_process', () => ({
-    execFileSync: jest.fn(),
-}));
+// No longer need to mock fs, tmp, child_process directly as they are used within the mocked processPdfUpload
+// jest.mock('fs');
+// jest.mock('tmp');
+// jest.mock('child_process');
 
+// No longer need to mock multer as it's used inline in the controller route
 // --- Require Controller AFTER mocks ---
-const fs = require('fs'); // fs is now the mock object
-const tmp = require('tmp');
-const { execFileSync } = require('child_process');
+// No longer need to require fs, tmp, child_process here
+// Require the controller AFTER mocks are set up
 const textControllerRouter = require('../controllers/textController');
+// Import the mocked functions to access their mock properties (e.g., mockResolvedValue)
+const { cleanupText, processPdfUpload } = require('../utils/textProcessing');
 const db = require('../models/db');
 const {
     requireLogin, // eslint-disable-line no-unused-vars
@@ -152,6 +154,8 @@ const mockReadStream = { pipe: jest.fn(), on: jest.fn() };
 // We need to set its return value in beforeEach AFTER clearAllMocks
 
 describe('Text Controller', () => {
+    // Controller is now required at the top level again
+    const textControllerRouter = require('../controllers/textController');
     let req;
     let res;
 
@@ -159,13 +163,11 @@ describe('Text Controller', () => {
         jest.clearAllMocks(); // Clears history, calls, instances, and results
         res = mockResponse();
 
-        // Re-apply default mock implementations/return values AFTER clearAllMocks
-        fs.existsSync.mockReturnValue(true);
-        fs.unlinkSync.mockClear();
-        fs.writeFileSync.mockClear();
-        fs.createReadStream.mockReturnValue(mockReadStream); // Re-set return value here
-        tmp.tmpNameSync.mockReturnValue('/tmp/mock-temp-file.pdf');
-        execFileSync.mockClear();
+        // Reset mocks for the utility functions
+        cleanupText.mockClear().mockImplementation((text) => text || ''); // Reset cleanup mock
+        processPdfUpload.mockClear(); // Reset PDF processing mock
+
+        // No longer need to reset fs, tmp, execFileSync mocks here
 
         // Re-mock middleware implementations if needed (though usually not necessary if stateless)
         // requireLogin.mockImplementation(...)
@@ -260,6 +262,7 @@ describe('Text Controller', () => {
                 title: '',
                 content: '',
                 categories: [], // Expect categories array now
+                selectedFolderId: null, // Expect selectedFolderId to be passed (as null here)
             });
         });
     });
@@ -353,32 +356,26 @@ describe('Text Controller', () => {
 
         test('should add text from PDF successfully', async () => {
             req = mockRequest({}, { title: 'PDF Text' }, {}, {}, mockPdfFile); // No content in body
-            const extractedText = ' Extracted PDF text. ';
-            const cleanedText = 'Extracted PDF text.'; // Simulate cleanup result
-            execFileSync.mockReturnValue(extractedText); // Mock pdftotext output
+            const resolvedCleanedText = 'Extracted PDF text.'; // Simulate cleanup result
+
+            // Mock processPdfUpload BEFORE calling the handler
+            processPdfUpload.mockResolvedValue(resolvedCleanedText);
             db.add_text.mockReturnValue(124); // Mock successful insert
 
             await postAddTextHandler(req, res);
 
-            expect(tmp.tmpNameSync).toHaveBeenCalled();
-            expect(fs.writeFileSync).toHaveBeenCalledWith(
-                '/tmp/mock-temp-file.pdf',
-                mockPdfFile.buffer
-            );
-            expect(execFileSync).toHaveBeenCalledWith(
-                'pdftotext',
-                ['-enc', 'UTF-8', '/tmp/mock-temp-file.pdf', '-'],
-                { encoding: 'utf8' }
-            );
+            // Expect the mocked PDF processing function to be called
+            expect(processPdfUpload).toHaveBeenCalledWith(mockPdfFile);
+
+            // Check that db.add_text was called with the cleaned text from the mock
             expect(db.add_text).toHaveBeenCalledWith(
                 req.session.user.id,
                 'PDF Text',
-                cleanedText,
-                null
-            ); // Added null for category_id
-            expect(fs.unlinkSync).toHaveBeenCalledWith(
-                '/tmp/mock-temp-file.pdf'
+                resolvedCleanedText, // Expect the result from the mocked processPdfUpload
+                null // category_id
             );
+            // No longer check fs, tmp, execFileSync
+
             expect(res.redirect).toHaveBeenCalledWith(
                 '/texts?message=Text added successfully!'
             );
@@ -389,7 +386,8 @@ describe('Text Controller', () => {
             req = mockRequest({}, { title: '' }, {}, {}, mockPdfFile);
             await postAddTextHandler(req, res);
 
-            expect(execFileSync).not.toHaveBeenCalled();
+            // processPdfUpload should not be called if title is empty
+            expect(processPdfUpload).not.toHaveBeenCalled();
             expect(db.add_text).not.toHaveBeenCalled();
             expect(res.render).toHaveBeenCalledWith(
                 'add_text',
@@ -408,7 +406,8 @@ describe('Text Controller', () => {
             );
             await postAddTextHandler(req, res);
 
-            expect(execFileSync).not.toHaveBeenCalled();
+            // processPdfUpload should not be called if both inputs provided
+            expect(processPdfUpload).not.toHaveBeenCalled();
             expect(db.add_text).not.toHaveBeenCalled();
             expect(res.render).toHaveBeenCalledWith(
                 'add_text',
@@ -421,27 +420,21 @@ describe('Text Controller', () => {
 
         test('should fail if pdftotext command not found (ENOENT)', async () => {
             req = mockRequest({}, { title: 'PDF Error' }, {}, {}, mockPdfFile);
-            const error = new Error('Command not found');
-            error.code = 'ENOENT';
-            execFileSync.mockImplementation(() => {
-                throw error;
-            });
+            const pdfError = new Error('pdftotext command not found');
+            // Mock processPdfUpload to throw the specific error BEFORE calling handler
+            processPdfUpload.mockRejectedValue(pdfError);
+            db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
-            expect(tmp.tmpNameSync).toHaveBeenCalled();
-            expect(fs.writeFileSync).toHaveBeenCalled();
-            expect(execFileSync).toHaveBeenCalled();
+            expect(processPdfUpload).toHaveBeenCalledWith(mockPdfFile);
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(fs.unlinkSync).toHaveBeenCalledWith(
-                '/tmp/mock-temp-file.pdf'
-            );
+            // No longer check fs, tmp, execFileSync
             expect(res.render).toHaveBeenCalledWith(
                 'add_text',
                 expect.objectContaining({
-                    error: expect.stringContaining(
-                        'pdftotext command not found'
-                    ),
+                    error: pdfError.message, // Expect the error message from the mocked rejection
+                    categories: [], // Expect categories to be re-fetched
                 })
             );
             expect(res.redirect).not.toHaveBeenCalled();
@@ -449,22 +442,21 @@ describe('Text Controller', () => {
 
         test('should fail if pdftotext extraction fails (other error)', async () => {
             req = mockRequest({}, { title: 'PDF Error' }, {}, {}, mockPdfFile);
-            const error = new Error('PDF processing failed');
-            execFileSync.mockImplementation(() => {
-                throw error;
-            });
+            const pdfError = new Error('PDF processing failed');
+            // Mock processPdfUpload to throw a generic error BEFORE calling handler
+            processPdfUpload.mockRejectedValue(pdfError);
+            db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
-            expect(fs.unlinkSync).toHaveBeenCalledWith(
-                '/tmp/mock-temp-file.pdf'
-            );
+            expect(processPdfUpload).toHaveBeenCalledWith(mockPdfFile);
+            expect(db.add_text).not.toHaveBeenCalled();
+            // No longer check fs, tmp, execFileSync
             expect(res.render).toHaveBeenCalledWith(
                 'add_text',
                 expect.objectContaining({
-                    error: expect.stringContaining(
-                        'Error processing PDF with pdftotext'
-                    ),
+                    error: pdfError.message, // Expect the error message from the mocked rejection
+                    categories: [],
                 })
             );
             expect(res.redirect).not.toHaveBeenCalled();
@@ -472,19 +464,21 @@ describe('Text Controller', () => {
 
         test('should fail if extracted PDF text is empty', async () => {
             req = mockRequest({}, { title: 'Empty PDF' }, {}, {}, mockPdfFile);
-            execFileSync.mockReturnValue('');
+            // Mock processPdfUpload to throw the specific "Could not extract" error
+            const pdfError = new Error('Could not extract text using pdftotext. PDF might be empty or image-based.');
+            processPdfUpload.mockRejectedValue(pdfError);
+            db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
-            expect(execFileSync).toHaveBeenCalled();
+            expect(processPdfUpload).toHaveBeenCalledWith(mockPdfFile);
             expect(db.add_text).not.toHaveBeenCalled();
-            expect(fs.unlinkSync).toHaveBeenCalledWith(
-                '/tmp/mock-temp-file.pdf'
-            );
+            // No longer check fs, tmp, execFileSync
             expect(res.render).toHaveBeenCalledWith(
                 'add_text',
                 expect.objectContaining({
-                    error: expect.stringContaining('Could not extract text'),
+                    error: pdfError.message, // Expect the specific error message
+                    categories: [],
                 })
             );
             expect(res.redirect).not.toHaveBeenCalled();
@@ -498,22 +492,37 @@ describe('Text Controller', () => {
                 {},
                 mockPdfFile
             );
-            execFileSync.mockReturnValue('Some extracted text.');
-            db.add_text.mockReturnValue(-1);
+            // Mock processPdfUpload to resolve successfully
+            processPdfUpload.mockResolvedValue('Some extracted text.');
+            db.add_text.mockReturnValue(-1); // Simulate DB failure
             db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
             await postAddTextHandler(req, res);
 
-            expect(execFileSync).toHaveBeenCalled();
+            expect(processPdfUpload).toHaveBeenCalledWith(mockPdfFile);
+            // Check db.add_text was called correctly before failing
+            expect(db.add_text).toHaveBeenCalledWith(
+                req.session.user.id,
+                'PDF DB Fail',
+                'Some extracted text.', // Result from mocked processPdfUpload
+                null // category_id
+            );
+            // No longer check fs, tmp, execFileSync
+
+            // Mock processPdfUpload to resolve successfully
+            processPdfUpload.mockResolvedValue('Some extracted text');
+
+            // Re-run handler
+            await postAddTextHandler(req, res);
+
+            expect(processPdfUpload).toHaveBeenCalledWith(mockPdfFile);
             expect(db.add_text).toHaveBeenCalledWith(
                 req.session.user.id,
                 'PDF DB Fail',
                 'Some extracted text.',
                 null
             ); // Added null for category_id
-            expect(fs.unlinkSync).toHaveBeenCalledWith(
-                '/tmp/mock-temp-file.pdf'
-            );
+            // No longer check fs.unlinkSync as it's internal to the mocked processPdfUpload function
             expect(res.render).toHaveBeenCalledWith(
                 'add_text',
                 expect.objectContaining({

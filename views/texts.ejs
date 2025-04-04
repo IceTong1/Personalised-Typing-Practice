@@ -18,7 +18,7 @@
             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#createFolderModal">
                 <i class="fas fa-folder-plus"></i> Create Folder
             </button>
-            <a href="/add_text?parent_category_id=<%= currentCategoryId || 'root' %>" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Add New Text</a> <!-- Pass current category to add text -->
+            <a href="/add_text?folderId=<%= currentCategoryId || 'root' %>" class="btn btn-sm btn-primary"><i class="fas fa-plus"></i> Add New Text</a> <!-- Pass current category ID as folderId -->
         </div>
     </div>
 
