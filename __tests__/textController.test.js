@@ -75,8 +75,12 @@ jest.mock('../utils/textProcessing', () => ({
     processPdfUpload: jest.fn(), // Mock the PDF processing function
 }));
 
+// Import fs and path for the real PDF test
+const fs = require('fs');
+const path = require('path');
+
 // No longer need to mock fs, tmp, child_process directly as they are used within the mocked processPdfUpload
-// jest.mock('fs');
+// jest.mock('fs'); // Keep fs mocked generally, but requireActual in specific test
 // jest.mock('tmp');
 // jest.mock('child_process');
 
@@ -530,6 +534,81 @@ describe('Text Controller', () => {
                 })
             );
             expect(res.redirect).not.toHaveBeenCalled();
+        });
+
+        // --- Test with Real PDF and Real Processing ---
+        test('should correctly process PDF with accents using real implementation', async () => {
+            // --- Arrange ---
+            // 1. Get real implementations (temporarily un-mock)
+            const {
+                processPdfUpload: realProcessPdfUpload,
+                cleanupText: realCleanupText,
+            } = jest.requireActual('../utils/textProcessing');
+
+            // 2. Read the real PDF file content
+            const pdfPath = path.join(__dirname, 'test_accent_issue.pdf');
+            let pdfBuffer;
+            try {
+                pdfBuffer = fs.readFileSync(pdfPath);
+            } catch (err) {
+                throw new Error(`Failed to read test PDF at ${pdfPath}: ${err.message}`);
+            }
+
+            // 3. Create mock file object with real buffer
+            const realPdfFile = {
+                fieldname: 'pdfFile',
+                originalname: 'test_accent_issue.pdf',
+                mimetype: 'application/pdf',
+                buffer: pdfBuffer,
+                size: pdfBuffer.length,
+            };
+
+            // 4. Prepare mock request
+            req = mockRequest({}, { title: 'Real Accent PDF' }, {}, {}, realPdfFile);
+
+            // 5. Mock DB add function
+            db.add_text.mockReturnValue(125); // Simulate successful DB insert
+
+            // 6. Define expected cleaned text snippet (based on manual analysis)
+            const expectedTextSnippet = "généré le 19 mars 2024";
+            const expectedTextSnippet2 = "complèter un site web"; // Use grave accent as per source PDF typo
+            const expectedTextSnippet3 = "données qu'à des utilisateurs authentifiés"; // Expect standard apostrophe and grave accent 'à'
+            const expectedTextSnippet4 = "visuelle du site à l'aide"; // Use standard apostrophe
+            const expectedTextSnippet5 = "largeur de l'écran"; // Use standard apostrophe
+
+
+            // --- Act ---
+            // Temporarily replace mocks with real functions for this test only
+            const originalProcessPdf = processPdfUpload;
+            const originalCleanup = cleanupText;
+            processPdfUpload.mockImplementation(realProcessPdfUpload);
+            cleanupText.mockImplementation(realCleanupText);
+
+            await postAddTextHandler(req, res);
+
+            // Restore mocks immediately after the call
+            processPdfUpload.mockImplementation(originalProcessPdf);
+            cleanupText.mockImplementation(originalCleanup);
+
+
+            // --- Assert ---
+            // Check if db.add_text was called
+            expect(db.add_text).toHaveBeenCalledTimes(1);
+
+            // Get the actual text passed to db.add_text
+            const actualSavedText = db.add_text.mock.calls[0][2]; // Arg index 2 is the content
+
+            // Check if the expected snippets are present in the cleaned text
+            expect(actualSavedText).toContain(expectedTextSnippet);
+            expect(actualSavedText).toContain(expectedTextSnippet2);
+            expect(actualSavedText).toContain(expectedTextSnippet3);
+            expect(actualSavedText).toContain(expectedTextSnippet4);
+            expect(actualSavedText).toContain(expectedTextSnippet5);
+
+
+            // Check redirection
+            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text added successfully!');
+            expect(res.render).not.toHaveBeenCalled();
         });
     });
 

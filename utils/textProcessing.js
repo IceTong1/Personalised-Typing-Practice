@@ -16,47 +16,52 @@ const cleanupText = (inputText) => {
 
     let cleaned = inputText;
 
+    // Apostrophe replacement moved AFTER accent handling
+
     // Pass 1: Fix Accent OptionalSpace Letter -> Precomposed
-    // Handles cases like ´ e -> é
+    // Handles cases like ´ e -> é, using explicit space/tab matching
     cleaned = cleaned
-        .replace(new RegExp(`${acute.source}\\s*e`, 'gi'), 'é')
-        .replace(new RegExp(`${grave.source}\\s*a`, 'gi'), 'à')
-        .replace(new RegExp(`${grave.source}\\s*e`, 'gi'), 'è')
-        .replace(new RegExp(`${grave.source}\\s*u`, 'gi'), 'ù')
-        .replace(new RegExp(`${circumflex.source}\\s*a`, 'gi'), 'â')
-        .replace(new RegExp(`${circumflex.source}\\s*e`, 'gi'), 'ê')
-        .replace(new RegExp(`${circumflex.source}\\s*i`, 'gi'), 'î')
-        .replace(new RegExp(`${circumflex.source}\\s*o`, 'gi'), 'ô')
-        .replace(new RegExp(`${circumflex.source}\\s*u`, 'gi'), 'û')
-        .replace(new RegExp(`${cedilla.source}\\s*c`, 'gi'), 'ç')
-        .replace(new RegExp(`${diaeresis.source}\\s*e`, 'gi'), 'ë')
-        .replace(new RegExp(`${diaeresis.source}\\s*i`, 'gi'), 'ï')
-        .replace(new RegExp(`${diaeresis.source}\\s*u`, 'gi'), 'ü');
+        .replace(new RegExp(`${acute.source}[ \t]*e`, 'gi'), 'é')
+        .replace(new RegExp(`${grave.source}[ \t]*a`, 'gi'), 'à')
+        .replace(new RegExp(`${grave.source}[ \t]*e`, 'gi'), 'è')
+        .replace(new RegExp(`${grave.source}[ \t]*u`, 'gi'), 'ù')
+        .replace(new RegExp(`${circumflex.source}[ \t]*a`, 'gi'), 'â')
+        .replace(new RegExp(`${circumflex.source}[ \t]*e`, 'gi'), 'ê')
+        .replace(new RegExp(`${circumflex.source}[ \t]*i`, 'gi'), 'î')
+        .replace(new RegExp(`${circumflex.source}[ \t]*o`, 'gi'), 'ô')
+        .replace(new RegExp(`${circumflex.source}[ \t]*u`, 'gi'), 'û')
+        .replace(new RegExp(`${cedilla.source}[ \t]*c`, 'gi'), 'ç')
+        .replace(new RegExp(`${diaeresis.source}[ \t]*e`, 'gi'), 'ë')
+        .replace(new RegExp(`${diaeresis.source}[ \t]*i`, 'gi'), 'ï')
+        .replace(new RegExp(`${diaeresis.source}[ \t]*u`, 'gi'), 'ü');
 
     // Pass 2: Fix Letter OptionalSpace Accent -> Precomposed
-    // Handles cases like e ´ -> é
+    // Handles cases like e ´ -> é, using explicit space/tab matching
     cleaned = cleaned
-        .replace(new RegExp(`a\\s*${grave.source}`, 'gi'), 'à')
-        .replace(new RegExp(`a\\s*${circumflex.source}`, 'gi'), 'â')
-        .replace(new RegExp(`c\\s*${cedilla.source}`, 'gi'), 'ç')
-        .replace(new RegExp(`e\\s*${acute.source}`, 'gi'), 'é')
-        .replace(new RegExp(`e\\s*${grave.source}`, 'gi'), 'è')
-        .replace(new RegExp(`e\\s*${circumflex.source}`, 'gi'), 'ê')
-        .replace(new RegExp(`e\\s*${diaeresis.source}`, 'gi'), 'ë')
-        .replace(new RegExp(`i\\s*${circumflex.source}`, 'gi'), 'î')
-        .replace(new RegExp(`i\\s*${diaeresis.source}`, 'gi'), 'ï')
-        .replace(new RegExp(`o\\s*${circumflex.source}`, 'gi'), 'ô')
-        .replace(new RegExp(`u\\s*${grave.source}`, 'gi'), 'ù')
-        .replace(new RegExp(`u\\s*${circumflex.source}`, 'gi'), 'û')
-        .replace(new RegExp(`u\\s*${diaeresis.source}`, 'gi'), 'ü');
+        .replace(new RegExp(`a[ \t]*${grave.source}`, 'gi'), 'à')
+        .replace(new RegExp(`a[ \t]*${circumflex.source}`, 'gi'), 'â')
+        .replace(new RegExp(`c[ \t]*${cedilla.source}`, 'gi'), 'ç')
+        .replace(new RegExp(`e[ \t]*${acute.source}`, 'gi'), 'é')
+        .replace(new RegExp(`e[ \t]*${grave.source}`, 'gi'), 'è')
+        .replace(new RegExp(`e[ \t]*${circumflex.source}`, 'gi'), 'ê')
+        .replace(new RegExp(`e[ \t]*${diaeresis.source}`, 'gi'), 'ë')
+        .replace(new RegExp(`i[ \t]*${circumflex.source}`, 'gi'), 'î')
+        .replace(new RegExp(`i[ \t]*${diaeresis.source}`, 'gi'), 'ï')
+        .replace(new RegExp(`o[ \t]*${circumflex.source}`, 'gi'), 'ô')
+        .replace(new RegExp(`u[ \t]*${grave.source}`, 'gi'), 'ù')
+        .replace(new RegExp(`u[ \t]*${circumflex.source}`, 'gi'), 'û')
+        .replace(new RegExp(`u[ \t]*${diaeresis.source}`, 'gi'), 'ü');
 
-    // Replace typographic apostrophe with standard apostrophe
-    cleaned = cleaned.replace(/’/g, "'");
+    // Apostrophe replacement moved AFTER normalization
 
     // Final Unicode normalization (NFC form) - applied AFTER manual replacements
     const normalizedText = cleaned.normalize('NFC');
 
+    // Replace typographic apostrophe AND common accent characters used as apostrophes AND standard apostrophe AFTER normalization, ensuring U+0027
+    const finalCleaned = normalizedText.replace(/[’´'`]/g, "'");
+
     // Trim whitespace from start/end
+    return finalCleaned.trim();
     return normalizedText.trim();
 };
 
