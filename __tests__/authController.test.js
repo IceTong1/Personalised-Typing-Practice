@@ -5,6 +5,7 @@
 
 const authController = require('../controllers/authController'); // Assuming this exports the router
 const db = require('../models/db');
+const { redirectIfLoggedIn } = require('../middleware/authMiddleware'); // Import the middleware
 
 // Mock the database module
 jest.mock('../models/db');
@@ -30,6 +31,9 @@ const mockResponse = () => {
     return res;
 };
 
+// Mock the next function for middleware testing
+const mockNext = () => jest.fn();
+
 // Find the specific route handler function within the router stack
 // This is a bit complex and depends on Express internals, might break with updates.
 // A refactor to export handlers directly would be more robust.
@@ -54,6 +58,7 @@ describe('Auth Controller', () => {
         // Reset mocks before each test
         jest.clearAllMocks();
         res = mockResponse();
+        next = mockNext(); // Create a new mock next function for each test
     });
 
     // --- Registration Tests (POST /register) ---
@@ -253,19 +258,36 @@ describe('Auth Controller', () => {
 
         test('should render login page if user is not logged in', () => {
             req = mockRequest({}); // No user in session
+            const next = mockNext();
 
-            getLoginHandler(req, res);
+            // Simulate middleware execution
+            redirectIfLoggedIn(req, res, next);
 
-            expect(res.render).toHaveBeenCalledWith('login', { error: null });
+            // Middleware should call next() because user is not logged in
+            expect(next).toHaveBeenCalledTimes(1);
             expect(res.redirect).not.toHaveBeenCalled();
+
+            // Only call the handler if next was called
+            if (next.mock.calls.length > 0) {
+                getLoginHandler(req, res);
+            }
+
+            // Handler should render the page
+            expect(res.render).toHaveBeenCalledWith('login', { error: null });
         });
 
         test('should redirect to /profile if user is already logged in', () => {
             req = mockRequest({ user: { id: 1, username: 'testUser' } }); // User in session
+            const next = mockNext();
 
-            getLoginHandler(req, res);
+            // Simulate middleware execution
+            redirectIfLoggedIn(req, res, next);
 
+            // Middleware should redirect because user is logged in
             expect(res.redirect).toHaveBeenCalledWith('/profile');
+            // Middleware should NOT call next()
+            expect(next).not.toHaveBeenCalled();
+            // Final handler should not be called, so render should not be called
             expect(res.render).not.toHaveBeenCalled();
         });
     });
@@ -276,21 +298,36 @@ describe('Auth Controller', () => {
 
         test('should render register page if user is not logged in', () => {
             req = mockRequest({}); // No user in session
+            const next = mockNext();
 
-            getRegisterHandler(req, res);
+            // Simulate middleware execution
+            redirectIfLoggedIn(req, res, next);
 
-            expect(res.render).toHaveBeenCalledWith('register', {
-                error: null,
-            });
+            // Middleware should call next() because user is not logged in
+            expect(next).toHaveBeenCalledTimes(1);
             expect(res.redirect).not.toHaveBeenCalled();
+
+            // Only call the handler if next was called
+            if (next.mock.calls.length > 0) {
+                getRegisterHandler(req, res);
+            }
+
+            // Handler should render the page
+            expect(res.render).toHaveBeenCalledWith('register', { error: null });
         });
 
         test('should redirect to /profile if user is already logged in', () => {
             req = mockRequest({ user: { id: 1, username: 'testUser' } }); // User in session
+            const next = mockNext();
 
-            getRegisterHandler(req, res);
+            // Simulate middleware execution
+            redirectIfLoggedIn(req, res, next);
 
+            // Middleware should redirect because user is logged in
             expect(res.redirect).toHaveBeenCalledWith('/profile');
+            // Middleware should NOT call next()
+            expect(next).not.toHaveBeenCalled();
+            // Final handler should not be called, so render should not be called
             expect(res.render).not.toHaveBeenCalled();
         });
     });

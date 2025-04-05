@@ -229,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const textDeleteButton = event.target.closest('.delete-btn');
         const folderDeleteButton = event.target.closest('.delete-folder-btn');
+        const summarizeButton = event.target.closest('.summarize-btn'); // Added check for summarize button
 
         if (textDeleteButton) {
             event.preventDefault(); // Stop default action (important if it's inside a link/form)
@@ -268,6 +269,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
                 alert('Error: Could not identify the folder to delete.');
             }
+        } else if (summarizeButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            console.log('Summarize button clicked.'); // DEBUG
+
+            const textId = summarizeButton.dataset.textId;
+            if (!textId) {
+                console.error('Text ID missing from summarize button.');
+                alert('Error: Could not identify the text to summarize.');
+                return;
+            }
+
+            summarizeButton.disabled = true;
+            summarizeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Summarizing...'; // Show loading state
+
+            fetch(`/texts/summarize/${textId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json', // Expect JSON response
+                    // Add authentication headers if needed (e.g., JWT token)
+                    // 'Authorization': `Bearer ${your_token_here}`
+                },
+            })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        // Try to parse error message from JSON body
+                        let errorData = { message: `HTTP error! status: ${response.status}` };
+                        try {
+                            errorData = await response.json();
+                        } catch (e) { /* Ignore parsing error if body isn't JSON */ }
+                        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((result) => {
+                    console.log('Summarization successful:', result);
+                    alert(`Summary created successfully! New text title: ${result.newTextTitle}`);
+                    // Refresh the page to show the new summary text
+                    window.location.reload();
+                })
+                .catch((error) => {
+                    console.error('Error summarizing text:', error);
+                    alert(`Failed to summarize text: ${error.message}`);
+                    // Restore button state on error
+                    summarizeButton.disabled = false;
+                    summarizeButton.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
+                    summarizeButton.title = 'Summarize with AI'; // Restore title
+                });
+                // Note: No finally block needed here as reload happens on success,
+                // and catch handles restoring the button on failure.
         }
     });
 });

@@ -62,6 +62,7 @@ function calculateTargetWidth(containerElement) {
  * @param {function} dependencies.renderLine - Function to render a specific line.
  * @param {function} dependencies.updateStats - Function to update displayed statistics.
  * @param {function} dependencies.calculateStartIndexForLine - Function to get the start index of a line.
+ * @param {HTMLElement} dependencies.linesToShowSelect - The dropdown for selecting lines to show.
  * @returns {object} - The initializer instance with an initialize method.
  */
 function createPracticeInitializer(dependencies) {
@@ -76,7 +77,8 @@ function createPracticeInitializer(dependencies) {
         inputHandler,
         renderLine,
         updateStats,
-        calculateStartIndexForLine
+        calculateStartIndexForLine,
+        linesToShowSelect // Added dependency
     } = dependencies;
 
     /**
@@ -86,6 +88,10 @@ function createPracticeInitializer(dependencies) {
     function initialize(startFromSaved = false) {
         console.log(`Initializing/Resetting practice. Start from saved: ${startFromSaved}`);
         timerManager.reset();
+
+        // --- Read Lines to Show Setting ---
+        practiceState.linesToShow = parseInt(linesToShowSelect.value, 10) || 1;
+        console.log(`[Debug] Lines to show set to: ${practiceState.linesToShow}`);
 
         // --- Width Calculation & Line Splitting ---
         const targetWidth = calculateTargetWidth(lineDisplay);

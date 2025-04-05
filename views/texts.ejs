@@ -92,10 +92,11 @@
                         </span>
                         <div class="actions d-flex align-items-center gap-1">
                             <!-- Other Action Buttons -->
+                            <button type="button" class="btn btn-sm btn-outline-primary summarize-btn" title="Summarize with AI" data-text-id="<%= text.id %>"><i class="fas fa-wand-magic-sparkles"></i></button> <!-- Added Summarize Button -->
                             <a href="/practice/<%= text.id %>" class="btn btn-sm btn-outline-info practice-btn" title="Practice"><i class="fas fa-keyboard"></i></a>
                             <a href="/edit_text/<%= text.id %>" class="btn btn-sm btn-outline-warning edit-btn" title="Edit"><i class="fas fa-edit"></i></a>
-                            <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block">
-                                <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="Delete"><i class="fas fa-trash"></i></button>
+                            <form action="/delete_text/<%= text.id %>" method="POST" class="d-inline-block delete-text-form"> <!-- Added class for JS targeting -->
+                                <button type="button" class="btn btn-sm btn-outline-danger delete-btn" title="Delete" data-text-id="<%= text.id %>" data-text-title="<%= text.title %>"><i class="fas fa-trash"></i></button> <!-- Added data attributes for confirmation -->
                             </form>
                         </div>
                     </div>

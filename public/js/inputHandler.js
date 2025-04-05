@@ -34,48 +34,78 @@ function createInputHandler(dependencies) {
 
     // --- Internal Helper Functions (Moved from practice.js) ---
 
-    function processCharacterInput(inputValue, targetSpans, lineText) {
+    /**
+     * Processes character input against the target spans for the current block.
+     * @param {string} inputValue - The current value from the hidden input.
+     * @param {Array<HTMLElement>} blockSpans - The array of spans for the current block (including newline placeholders).
+     * @param {string} blockText - The expected text content for the block (including newlines).
+     * @returns {object} - Results: { correctLength (non-newline chars), blockCorrect, blockErrors, lastCharCorrect }
+     */
+    function processCharacterInput(inputValue, blockSpans, blockText) {
         const inputLength = inputValue.length;
-        let lineCorrect = true;
-        let lineErrors = 0;
+        let blockCorrect = true; // Assume correct until proven otherwise
+        let blockErrors = 0;
         let lastCharCorrect = false;
-        let correctLength = 0;
+        let correctLength = 0; // Tracks correctly typed *non-newline* characters in sequence
+        let currentBlockIndex = 0; // Index within the blockSpans array
 
-        targetSpans.forEach((charSpan, index) => {
-            const expectedChar = charSpan.textContent;
-            if (index < inputLength) {
-                const typedChar = inputValue[index];
+        for (let i = 0; i < blockSpans.length; i++) {
+            const charSpan = blockSpans[i];
+            const isNewlineSpan = charSpan.classList.contains('newline-char');
+            const expectedChar = isNewlineSpan ? '\n' : charSpan.textContent;
+
+            if (currentBlockIndex < inputLength) {
+                const typedChar = inputValue[currentBlockIndex];
                 const isCorrect = typedChar === expectedChar;
 
+                // Only count errors for non-newline characters
                 const wasPreviouslyIncorrect = charSpan.classList.contains('incorrect');
-                if (!isCorrect && !wasPreviouslyIncorrect) {
-                    lineErrors++;
+                if (!isCorrect && !wasPreviouslyIncorrect && !isNewlineSpan) {
+                    blockErrors++;
                 }
 
+                // Update visual feedback
                 charSpan.classList.toggle('correct', isCorrect);
                 charSpan.classList.toggle('incorrect', !isCorrect);
 
-                if (isCorrect && lineCorrect) {
-                    correctLength = index + 1;
+                // Update overall block correctness and sequential correct length
+                if (isCorrect && blockCorrect) {
+                    if (!isNewlineSpan) { // Only increment correctLength for actual characters
+                        correctLength = currentBlockIndex + 1; // +1 because index is 0-based
+                    }
                 } else {
-                    lineCorrect = false;
+                    blockCorrect = false;
                 }
-                if (index === inputLength - 1) lastCharCorrect = isCorrect;
-            } else {
-                charSpan.classList.remove(
-                    'correct',
-                    'incorrect',
-                    'effect-correct',
-                    'effect-incorrect'
-                );
-                lineCorrect = false;
-            }
-        });
 
-        if (inputLength !== lineText.length) {
-            lineCorrect = false;
+                // Track if the very last typed character was correct
+                if (currentBlockIndex === inputLength - 1) {
+                    lastCharCorrect = isCorrect;
+                }
+
+                currentBlockIndex++; // Move to the next character in the input
+
+            } else { // Input is shorter than the block
+                charSpan.classList.remove('correct', 'incorrect', 'effect-correct', 'effect-incorrect');
+                blockCorrect = false; // Cannot be correct if input is too short
+            }
         }
-        return { correctLength, lineCorrect, lineErrors, lastCharCorrect };
+
+        // Final check: block is only correct if input length matches block length
+        if (inputLength !== blockText.length) {
+            blockCorrect = false;
+        }
+
+        // Adjust correctLength to represent the count of non-newline characters correctly typed sequentially
+        let nonNewlineCorrectCount = 0;
+        for(let k = 0; k < correctLength; k++) {
+            if (inputValue[k] !== '\n') { // Assuming input mirrors block structure w/ newlines
+                nonNewlineCorrectCount++;
+            }
+        }
+
+        // console.log(`[Debug processInput] Input: "${inputValue}", BlockText: "${blockText}", CorrectLength (raw): ${correctLength}, NonNewlineCorrect: ${nonNewlineCorrectCount}, BlockCorrect: ${blockCorrect}, Errors: ${blockErrors}`);
+
+        return { correctLength: nonNewlineCorrectCount, blockCorrect, blockErrors, lastCharCorrect };
     }
 
     function handleCharacterFeedback(isCorrect, inputLength, previousInputValue, targetSpans) {
@@ -103,28 +133,55 @@ function createInputHandler(dependencies) {
         }
     }
 
-     function checkAndHandleLineCompletion(isLineCorrect, inputLength, currentLineText) {
-         if (
+    /**
+     * Checks if the *individual line currently being typed* is complete and correct.
+     * Handles clearing input and advancing block if necessary.
+     * @param {boolean} isLineCorrect - Whether the current line input matches the target line text.
+     * @param {number} inputLength - The length of the current input value.
+     * @param {string} currentLineText - The expected text for the *specific line* being typed.
+     * @param {number} currentLineIndexInBlock - The 0-based index of the line within the current display block.
+     * @param {number} linesInCurrentBlock - The total number of lines displayed in the current block.
+     * @returns {boolean} - True if the *entire block* was completed and handled, false otherwise.
+     */
+    function checkAndHandleIndividualLineCompletion(isLineCorrect, inputLength, currentLineText, currentLineIndexInBlock, linesInCurrentBlock) {
+        if (
             isLineCorrect &&
             inputLength === currentLineText.length &&
             currentLineText.length > 0
         ) {
-            console.log(`Line ${practiceState.currentDisplayLineIndex} complete.`);
+            const absoluteLineIndex = practiceState.currentDisplayLineIndex + currentLineIndexInBlock;
+            console.log(`Individual line ${absoluteLineIndex} complete.`);
             lineCompleteSound.play().catch((e) => console.log('Sound play interrupted'));
-            practiceState.currentDisplayLineIndex++;
-            if (practiceState.currentDisplayLineIndex < practiceState.lines.length) {
-                practiceState.currentOverallCharIndex++; // Account for the line break/space
-            }
-            // --- FIX: Clear the hidden input and state before rendering the new line ---
+
+            // --- Clear Input ---
             if (practiceState.hiddenInput) {
                 practiceState.hiddenInput.value = '';
             }
             practiceState.currentInputValue = '';
-            // --- End Fix ---
-            renderLine(practiceState.currentDisplayLineIndex); // Call external function passed as dependency
-            return true;
+            renderCustomInput('', typingInputContent);
+            updateCursorPosition(typingCursor, typingInputArea, typingInputContent, practiceState.isCustomInputFocused);
+
+            // --- Check if Block is Complete ---
+            const isLastLineOfBlock = currentLineIndexInBlock === linesInCurrentBlock - 1;
+
+            if (isLastLineOfBlock) {
+                console.log(`Last line of block completed. Advancing block.`);
+                // Advance to the start of the next block
+                practiceState.currentDisplayLineIndex += linesInCurrentBlock;
+                practiceState.currentOverallCharIndex = calculateStartIndexForLine(practiceState.currentDisplayLineIndex);
+                // Render the next block
+                renderLine(practiceState.currentDisplayLineIndex);
+                return true; // Block was completed
+            } else {
+                // Not the last line, just update overall index to the start of the *next* line within the block
+                practiceState.currentOverallCharIndex = calculateStartIndexForLine(absoluteLineIndex + 1);
+                console.log(`Line complete, but not end of block. New overall index: ${practiceState.currentOverallCharIndex}`);
+                // No need to re-render the block, just update stats
+                updateStats();
+                return false; // Block not completed yet
+            }
         }
-        return false;
+        return false; // Block not completed
     }
 
     // --- Event Handlers ---
@@ -138,57 +195,146 @@ function createInputHandler(dependencies) {
         if (!practiceState.hiddenInput) return;
         const previousInputValue = practiceState.currentInputValue;
         practiceState.currentInputValue = practiceState.hiddenInput.value;
-        const inputLength = practiceState.currentInputValue.length;
+        const currentInput = practiceState.currentInputValue; // Use a shorter alias
+        const inputLength = currentInput.length;
 
-        // Start timer if not running
+        // Start timer if not running and text not complete
         if (!practiceState.timerRunning && practiceState.currentDisplayLineIndex < practiceState.lines.length) {
-            timerManager.start(); // Use timerManager passed in dependencies
+            timerManager.start();
         }
 
         // Update visual input display and cursor
-        renderCustomInput(practiceState.currentInputValue, typingInputContent);
-        updateCursorPosition(
-            typingCursor,
-            typingInputArea,
-            typingInputContent,
-            practiceState.isCustomInputFocused
-        );
+        renderCustomInput(currentInput, typingInputContent);
+        updateCursorPosition(typingCursor, typingInputArea, typingInputContent, practiceState.isCustomInputFocused);
 
-        // Get current line text and check for completion state
-        const currentLineText = practiceState.lines[practiceState.currentDisplayLineIndex] || '';
-        if (!currentLineText && practiceState.currentDisplayLineIndex >= practiceState.lines.length) {
-             console.log("Attempting input after text completion.");
-             practiceState.hiddenInput.value = ''; // Prevent further input
-             practiceState.currentInputValue = '';
-             renderCustomInput('', typingInputContent); // Clear visual input
-             updateCursorPosition(typingCursor, typingInputArea, typingInputContent, practiceState.isCustomInputFocused); // Update cursor
-             return; // Exit
+        // --- Determine current line within the block based on overall index ---
+        const blockStartIndex = practiceState.currentDisplayLineIndex;
+        const linesInBlock = Math.min(practiceState.linesToShow, practiceState.lines.length - blockStartIndex);
+        const overallStartIndexForBlock = calculateStartIndexForLine(blockStartIndex);
+
+        let currentLineAbsoluteIndex = -1;
+        let currentLineIndexInBlock = -1;
+        let startIndexOfCurrentLine = -1;
+        let lengthOfCurrentLine = 0;
+        let spansForCurrentLine = [];
+        let textForCurrentLine = "";
+        let cumulativeLengthInBlock = 0; // Tracks raw length (incl. newlines) for span indexing
+
+        for (let i = 0; i < linesInBlock; i++) {
+            const lineIdx = blockStartIndex + i;
+            const lineText = practiceState.lines[lineIdx];
+            const lineStartIndexAbsolute = calculateStartIndexForLine(lineIdx);
+            const lineEndIndexAbsolute = lineStartIndexAbsolute + lineText.length; // End index is exclusive for comparison
+
+            // Check if the current overall character index falls within this line
+            // It should be >= start of line and < end of line (or exactly at start if inputLength is 0)
+            if (practiceState.currentOverallCharIndex >= lineStartIndexAbsolute &&
+                practiceState.currentOverallCharIndex <= lineEndIndexAbsolute) { // Use <= to catch start of line case
+
+                // Special case: If index is exactly at the end, and input is empty, target the *next* line if available
+                if (practiceState.currentOverallCharIndex === lineEndIndexAbsolute && inputLength === 0 && i < linesInBlock - 1) {
+                   // Skip to next iteration, the next line's check will handle it
+                   cumulativeLengthInBlock += lineText.length + 1; // Account for newline
+                   continue;
+                }
+
+                currentLineAbsoluteIndex = lineIdx;
+                currentLineIndexInBlock = i;
+                startIndexOfCurrentLine = lineStartIndexAbsolute;
+                lengthOfCurrentLine = lineText.length;
+                textForCurrentLine = lineText;
+
+                // Extract spans for this specific line from the block spans
+                const spanStartIndexInBlock = cumulativeLengthInBlock;
+                const spanEndIndexInBlock = spanStartIndexInBlock + lengthOfCurrentLine;
+                spansForCurrentLine = practiceState.currentCharSpans.slice(spanStartIndexInBlock, spanEndIndexInBlock);
+                break; // Found the line
+            }
+            // Add length of this line + newline (if applicable) for next iteration's span index calculation
+            cumulativeLengthInBlock += lineText.length + (i < linesInBlock - 1 ? 1 : 0);
         }
 
-        // Increment total entries
-        practiceState.totalTypedEntries++;
+        // Handle case where text is complete or line wasn't found (shouldn't happen)
+        if (currentLineAbsoluteIndex === -1 || currentLineAbsoluteIndex >= practiceState.lines.length) {
+            if (practiceState.currentDisplayLineIndex >= practiceState.lines.length) {
+                console.log("Attempting input after text completion.");
+                if (practiceState.hiddenInput) practiceState.hiddenInput.value = '';
+                practiceState.currentInputValue = '';
+                renderCustomInput('', typingInputContent);
+                updateCursorPosition(typingCursor, typingInputArea, typingInputContent, practiceState.isCustomInputFocused);
+            } else {
+                console.error("Could not determine current line for input handling. State:", practiceState);
+            }
+            return;
+        }
 
-        // Process character comparison and get results
-        const { correctLength, lineCorrect, lineErrors, lastCharCorrect } =
-            processCharacterInput(practiceState.currentInputValue, practiceState.currentCharSpans, currentLineText);
+        // --- Process Input for the Current Line Only ---
+        practiceState.totalTypedEntries++; // Increment regardless of line
 
-        // Update total errors (line errors only)
-        practiceState.totalErrors += lineErrors;
+        // Compare currentInput against textForCurrentLine using spansForCurrentLine
+        let lineCorrect = true;
+        let lineErrors = 0;
+        let lastCharCorrect = false;
+        let correctPrefixLengthOnLine = 0;
 
-        // Handle sound/effect feedback (also handles errors for typing past end)
-        handleCharacterFeedback(lastCharCorrect, inputLength, previousInputValue, practiceState.currentCharSpans);
+        spansForCurrentLine.forEach((charSpan, index) => {
+            const expectedChar = charSpan.textContent; // Newlines are not in spansForCurrentLine
+            if (index < inputLength) {
+                const typedChar = currentInput[index];
+                const isCorrect = typedChar === expectedChar;
 
-        // Update total typed characters and overall progress index based on correct prefix
-        const lineStartIndex = calculateStartIndexForLine(practiceState.currentDisplayLineIndex);
-        practiceState.totalTypedChars = lineStartIndex + correctLength;
-        practiceState.currentOverallCharIndex = lineStartIndex + correctLength;
+                const wasPreviouslyIncorrect = charSpan.classList.contains('incorrect');
+                if (!isCorrect && !wasPreviouslyIncorrect) {
+                    lineErrors++;
+                    // TODO: Refine global error counting - maybe increment here?
+                    // practiceState.totalErrors++;
+                }
 
-        // Check if the line was completed
-        const lineCompleted = checkAndHandleLineCompletion(lineCorrect, inputLength, currentLineText);
+                charSpan.classList.toggle('correct', isCorrect);
+                charSpan.classList.toggle('incorrect', !isCorrect);
 
-        // Update stats display if the line wasn't just completed
-        if (!lineCompleted) {
-            updateStats(); // Call external function passed as dependency
+                if (isCorrect && lineCorrect) {
+                    correctPrefixLengthOnLine = index + 1;
+                } else {
+                    lineCorrect = false;
+                }
+                if (index === inputLength - 1) lastCharCorrect = isCorrect;
+            } else {
+                charSpan.classList.remove('correct', 'incorrect', 'effect-correct', 'effect-incorrect');
+                lineCorrect = false;
+            }
+        });
+
+        // Line isn't correct if input length doesn't match expected line length
+        if (inputLength !== lengthOfCurrentLine) {
+            lineCorrect = false;
+        }
+
+        // Handle feedback (sound/effect) for the last typed character on this line
+        handleCharacterFeedback(lastCharCorrect, inputLength, previousInputValue, spansForCurrentLine);
+
+        // Update overall progress index based on the correct prefix *on this line*
+        practiceState.currentOverallCharIndex = startIndexOfCurrentLine + correctPrefixLengthOnLine;
+        // Update totalTypedChars (used for WPM) - needs careful consideration
+        // Let's base it on overall index for now, but this might need refinement for accuracy across clears.
+        practiceState.totalTypedChars = practiceState.currentOverallCharIndex;
+
+        // --- Check for Individual Line Completion ---
+        const blockCompleted = checkAndHandleIndividualLineCompletion(
+            lineCorrect,
+            inputLength,
+            textForCurrentLine,
+            currentLineIndexInBlock,
+            linesInBlock
+        );
+
+        // Update stats display if the block wasn't just completed
+        // (checkAndHandleIndividualLineCompletion updates stats if only a line was completed)
+        if (!blockCompleted) {
+            // If the line wasn't completed either, update stats normally
+            if (!(lineCorrect && inputLength === lengthOfCurrentLine)) {
+                 updateStats();
+            }
         }
     }
 

@@ -201,8 +201,9 @@ describe('Integration Tests', () => {
 
             // Verify session is cleared by trying to access protected route
             const profileRes = await agent.get('/profile');
-            expect(profileRes.statusCode).toEqual(302); // Should redirect to login
-            expect(profileRes.headers.location).toEqual('/login');
+            // Updated: Expect 401 Unauthorized for JSON-accepting requests after logout
+            expect(profileRes.statusCode).toEqual(401);
+            expect(profileRes.body.message).toContain('Authentication required'); // Check JSON error message
         });
     });
 
@@ -470,11 +471,10 @@ describe('Integration Tests', () => {
 
                 const res = await agent.get('/edit_text/2'); // Try to edit text ID 2
 
-                expect(res.statusCode).toEqual(302); // requireOwnership redirects on not found
+                // Updated: Expect 404 Not Found for JSON-accepting requests when text not found/owned
+                expect(res.statusCode).toEqual(404);
                 expect(db.get_text).toHaveBeenCalledWith('2'); // Middleware calls get_text without userId
-                expect(res.headers.location).toEqual(
-                    '/profile?message=Text%20not%20found'
-                );
+                expect(res.body.message).toContain('Text not found'); // Check JSON error message
                 expect(db.get_all_categories_flat).not.toHaveBeenCalled(); // Shouldn't be called if middleware fails
             });
         });
@@ -529,7 +529,9 @@ describe('Integration Tests', () => {
                 });
 
                 expect(res.statusCode).toEqual(200); // Renders form again
-                expect(res.text).toContain('Title and content cannot be empty.');
+                expect(res.text).toContain(
+                    'Title and content cannot be empty.'
+                );
                 expect(db.update_text).not.toHaveBeenCalled();
                 expect(db.get_all_categories_flat).toHaveBeenCalledWith(999);
             });
@@ -552,7 +554,9 @@ describe('Integration Tests', () => {
                 });
 
                 expect(res.statusCode).toEqual(200); // Renders form again
-                expect(res.text).toContain('Title and content cannot be empty.');
+                expect(res.text).toContain(
+                    'Title and content cannot be empty.'
+                );
                 expect(db.update_text).not.toHaveBeenCalled();
                 expect(db.get_all_categories_flat).toHaveBeenCalledWith(999);
             });
@@ -674,10 +678,9 @@ describe('Integration Tests', () => {
 
                 const res = await agent.get('/practice/99'); // Non-existent/unowned text
 
-                expect(res.statusCode).toEqual(302); // Redirects via requireOwnership
-                expect(res.headers.location).toEqual(
-                    '/profile?message=Text%20not%20found'
-                );
+                // Updated: Expect 404 Not Found for JSON-accepting requests when text not found/owned
+                expect(res.statusCode).toEqual(404);
+                expect(res.body.message).toContain('Text not found'); // Check JSON error message
                 expect(db.get_text).toHaveBeenCalledWith('99'); // Middleware call
             });
         });

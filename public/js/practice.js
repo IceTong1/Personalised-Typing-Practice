@@ -33,6 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const completionElement = document.getElementById('completion');
     const resetButton = document.getElementById('reset-button');
     const saveButton = document.getElementById('save-button');
+    const skipLineButton = document.getElementById('skip-line-button');
+    const linesToShowSelect = document.getElementById('lines-to-show-select'); // Added lines to show select reference
+    const toggleFullTextButton = document.getElementById('toggle-full-text-button'); // Added toggle full text button reference
+    const fullTextContainer = document.getElementById('full-text-container'); // Added full text container reference
+    const fullTextDisplay = document.getElementById('full-text-display'); // Added full text display reference
     const resultsContainer = document.getElementById('results');
 
     // --- Audio Elements ---
@@ -48,7 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
         !lineContainer || !lineDisplay || !typingInputArea || !typingInputContent ||
         !typingCursor || !resetButton || !saveButton || !completionElement ||
         !resultsContainer || !wpmElement || !accuracyElement || !errorsElement ||
-        !timerElement
+        !timerElement || !skipLineButton || !toggleFullTextButton || // Added checks for full text elements
+        !fullTextContainer || !fullTextDisplay || !linesToShowSelect // Added check for lines select
     ) {
         console.error('Required elements not found for practice script. Aborting.');
         return;
@@ -80,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         totalErrors: 0,
         totalTypedChars: 0,
         totalTypedEntries: 0,
+        linesToShow: 1, // Added state for number of lines to display
     };
 
     // --- Initialize Managers ---
@@ -93,35 +100,58 @@ document.addEventListener('DOMContentLoaded', () => {
      * Renders a specific line. Called by initializer and inputHandler.
      * @param {number} lineIndex - The index of the line to render.
      */
-    function renderLine(lineIndex) {
-        console.log(`[Debug] renderLine called with index: ${lineIndex}`);
-        if (lineIndex >= practiceState.lines.length) {
+    function renderLine(startIndex) {
+        console.log(`[Debug] renderLine called with start index: ${startIndex}, lines to show: ${practiceState.linesToShow}`);
+        lineDisplay.innerHTML = ''; // Clear previous content
+        practiceState.currentCharSpans = []; // Reset spans for the new block
+
+        if (startIndex >= practiceState.lines.length) {
             lineDisplay.innerHTML = '<span class="correct">Text Complete!</span>';
             timerManager.stop();
             if (resultsContainer) resultsContainer.classList.add('completed');
+            // Ensure index reflects full completion if somehow overshot
             practiceState.currentOverallCharIndex = practiceState.totalDisplayLength;
             updateStats(); // Final stats update
             console.log('Text completed!');
             return;
         }
-        const lineText = practiceState.lines[lineIndex];
-        console.log(`[Debug] Rendering line text: "${lineText}"`);
-        lineDisplay.innerHTML = '';
-        practiceState.currentCharSpans = []; // Reset spans for the new line
-        for (let i = 0; i < lineText.length; i++) {
-            const char = lineText[i];
-            const span = document.createElement('span');
-            span.textContent = char;
-            if (char === ' ') span.classList.add('space-char');
-            lineDisplay.appendChild(span);
-            practiceState.currentCharSpans.push(span);
+
+        const endIndex = Math.min(startIndex + practiceState.linesToShow, practiceState.lines.length);
+        console.log(`[Debug] Rendering lines from ${startIndex} to ${endIndex - 1}`);
+
+        for (let i = startIndex; i < endIndex; i++) {
+            const lineText = practiceState.lines[i];
+            console.log(`[Debug] Rendering line ${i}: "${lineText}"`);
+
+            // Add spans for the current line
+            for (let j = 0; j < lineText.length; j++) {
+                const char = lineText[j];
+                const span = document.createElement('span');
+                span.textContent = char;
+                if (char === ' ') span.classList.add('space-char');
+                lineDisplay.appendChild(span);
+                practiceState.currentCharSpans.push(span);
+            }
+
+            // Add line break if not the last line in the block AND not the last line overall
+            if (i < endIndex - 1) {
+                const br = document.createElement('br');
+                lineDisplay.appendChild(br);
+                // Add a placeholder span for the newline character in our tracking array
+                // This is crucial for the input handler to correctly calculate offsets
+                const newlineSpan = document.createElement('span');
+                newlineSpan.textContent = '\n'; // Represent newline
+                newlineSpan.classList.add('newline-char'); // Add class for potential styling/debugging
+                newlineSpan.style.display = 'none'; // Don't actually show it
+                practiceState.currentCharSpans.push(newlineSpan);
+            }
         }
 
-        // Reset visual input for the new line
+        // Reset visual input for the new block
         renderCustomInput('', typingInputContent);
         updateCursorPosition(typingCursor, typingInputArea, typingInputContent, practiceState.isCustomInputFocused);
 
-        // Ensure input handler is focused for the new line
+        // Ensure input handler is focused for the new block
         if (inputHandler) { // Check if inputHandler is initialized
              inputHandler.focus();
         } else {
@@ -196,7 +226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         inputHandler, // Pass the created input handler
         renderLine,
         updateStats,
-        calculateStartIndexForLine
+        calculateStartIndexForLine,
+        linesToShowSelect // Pass the select element - Already present from previous step
     });
 
 
@@ -240,6 +271,99 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('Save and profile link element not found.');
     }
 
+    // Skip Line (Block) Button Listener
+    if (skipLineButton) {
+        skipLineButton.addEventListener('click', () => {
+            console.log('Skip Line button clicked.');
+            const currentBlockStartIndex = practiceState.currentDisplayLineIndex;
+            // Use the current linesToShow from state
+            const linesInCurrentBlock = Math.min(practiceState.linesToShow, practiceState.lines.length - currentBlockStartIndex);
+            const nextBlockStartIndex = currentBlockStartIndex + linesInCurrentBlock;
+
+            // Check if there's a next block to skip to
+            if (nextBlockStartIndex < practiceState.lines.length) {
+                timerManager.stop(); // Stop the timer when skipping
+
+                // Move state to the start of the next block
+                practiceState.currentDisplayLineIndex = nextBlockStartIndex;
+                practiceState.currentOverallCharIndex = calculateStartIndexForLine(practiceState.currentDisplayLineIndex);
+
+                // Render the new block (this also resets input and focuses)
+                renderLine(practiceState.currentDisplayLineIndex);
+
+                // Update stats (completion will change)
+                updateStats();
+
+                console.log(`Skipped to block starting at line index: ${practiceState.currentDisplayLineIndex}, overall index: ${practiceState.currentOverallCharIndex}`);
+            } else {
+                console.log('Already on the last block, cannot skip.');
+                // Optionally disable the button here if needed
+            }
+        });
+    } else {
+        console.warn('Skip Line button element not found.');
+    }
+
+    // Toggle Full Text Button Listener
+    if (toggleFullTextButton && fullTextContainer && fullTextDisplay) {
+        toggleFullTextButton.addEventListener('click', () => {
+            const isToggled = toggleFullTextButton.getAttribute('data-toggled') === 'true';
+            if (!isToggled) {
+                // Show full text
+                fullTextDisplay.textContent = fullText; // Use the fullText constant from line 58
+                fullTextContainer.style.display = 'block';
+                toggleFullTextButton.innerHTML = '<i class="fas fa-eye-slash me-2"></i>Hide Full Text';
+                toggleFullTextButton.setAttribute('data-toggled', 'true');
+                console.log('Showing full text.');
+            } else {
+                // Hide full text
+                fullTextContainer.style.display = 'none';
+                toggleFullTextButton.innerHTML = '<i class="fas fa-eye me-2"></i>Show Full Text';
+                toggleFullTextButton.setAttribute('data-toggled', 'false');
+                console.log('Hiding full text.');
+            }
+        });
+    } else {
+        console.warn('Toggle Full Text button or container/display elements not found.');
+    }
+
+    // --- Lines to Show Dropdown Listener ---
+    if (linesToShowSelect) {
+        linesToShowSelect.addEventListener('change', () => {
+            console.log('Lines to show changed.');
+            const savedIndex = practiceState.currentOverallCharIndex;
+            const newLinesToShow = parseInt(linesToShowSelect.value, 10) || 1;
+
+            // Update state immediately so initializer picks it up
+            practiceState.linesToShow = newLinesToShow;
+
+            // Reset layout (recalculates lines based on width, uses new linesToShow)
+            // We pass 'false' to reset() so it doesn't use initialProgressIndex
+            practiceInitializer.reset(false);
+
+            // Find where the saved index falls in the *new* line layout
+            const { lineIndex: newStartIndex, charOffset: newOffset } =
+                getDisplayLineAndOffset(savedIndex, practiceState.lines);
+
+            // Update state to reflect the position within the new layout
+            practiceState.currentDisplayLineIndex = newStartIndex;
+            practiceState.currentOverallCharIndex = savedIndex; // Restore the exact character index
+
+            // Render the correct block based on the new start index
+            renderLine(practiceState.currentDisplayLineIndex);
+
+            // Update stats display
+            updateStats();
+
+            console.log(`Lines to show set to ${newLinesToShow}. Restored position to overall index: ${savedIndex} (New Start Line: ${newStartIndex})`);
+
+            // Ensure focus is maintained
+            inputHandler.focus();
+        });
+    } else {
+        console.warn('Lines to show select element not found.');
+    }
+
     // --- Debounce Utility ---
     function debounce(func, wait) {
         let timeout;
@@ -253,26 +377,29 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // --- Resize Handling ---
+    // --- Resize Handling (Adapts similar logic to dropdown change) ---
     let indexBeforeResize = 0;
     const handleResize = debounce(() => {
         console.log('Window resized, recalculating layout...');
         indexBeforeResize = practiceState.currentOverallCharIndex;
 
         // Use the initializer to reset and recalculate layout
-        practiceInitializer.reset(); // Resets to start based on new width
+        // Pass false to reset() to ensure it doesn't revert to initialProgressIndex
+        // It will use the current linesToShow value from the state/dropdown
+        practiceInitializer.reset(false);
 
         // Restore position based on the *newly calculated* lines array
         const { lineIndex: newLine, charOffset: newOffset } =
             getDisplayLineAndOffset(indexBeforeResize, practiceState.lines); // Use state lines
 
-        // Update state and render the correct line
-        practiceState.currentDisplayLineIndex = newLine;
-        practiceState.currentOverallCharIndex = indexBeforeResize;
-        renderLine(practiceState.currentDisplayLineIndex); // This calls inputHandler.focus()
+        // Update state and render the correct block
+        practiceState.currentDisplayLineIndex = newLine; // This is the start line of the block
+        practiceState.currentOverallCharIndex = indexBeforeResize; // Restore exact index
+        renderLine(practiceState.currentDisplayLineIndex); // Render block starting at newLine
 
-        console.log(`Restored position to overall index: ${practiceState.currentOverallCharIndex} (Line: ${newLine}, Offset: ${newOffset})`);
+        console.log(`Restored position to overall index: ${practiceState.currentOverallCharIndex} (New Start Line: ${newLine}, Offset: ${newOffset})`);
         updateStats();
+        inputHandler.focus(); // Ensure focus after resize adjustments
     }, 250);
 
     window.addEventListener('resize', handleResize);

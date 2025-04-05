@@ -3,6 +3,7 @@ const express = require('express');
 
 const router = express.Router(); // Create a new router object to handle requests
 const db = require('../models/db'); // Import database access functions from the model
+const { redirectIfLoggedIn } = require('../middleware/authMiddleware'); // Import the new middleware
 
 // --- Authentication Routes ---
 
@@ -11,13 +12,9 @@ const db = require('../models/db'); // Import database access functions from the
  * Description: Displays the login page.
  * Redirects: To /profile if the user is already logged in.
  */
-router.get('/login', (req, res) => {
-    // Check if user information already exists in the session
-    if (req.session.user) {
-        if (process.env.NODE_ENV === 'development')
-            console.log('User already logged in, redirecting to profile.');
-        return res.redirect('/profile'); // Redirect logged-in users away from login page
-    }
+// Apply the middleware before the route handler
+router.get('/login', redirectIfLoggedIn, (req, res) => {
+    // The check for logged-in user is now handled by the middleware
     // Render the login view ('login.ejs')
     // Pass 'error: null' initially. 'user' is available via res.locals from middleware.
     res.render('login', { error: null });
@@ -55,13 +52,9 @@ router.post('/login', (req, res) => {
  * Description: Displays the user registration page.
  * Redirects: To /profile if the user is already logged in.
  */
-router.get('/register', (req, res) => {
-    // Redirect logged-in users away from registration page
-    if (req.session.user) {
-        if (process.env.NODE_ENV === 'development')
-            console.log('User already logged in, redirecting to profile.');
-        return res.redirect('/profile');
-    }
+// Apply the middleware before the route handler
+router.get('/register', redirectIfLoggedIn, (req, res) => {
+    // The check for logged-in user is now handled by the middleware
     // Render the registration view ('register.ejs'). 'user' is available via res.locals.
     res.render('register', { error: null });
 });

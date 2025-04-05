@@ -9,6 +9,8 @@ const { execFileSync } = require('child_process'); // For running external comma
 const fs = require('fs'); // File system module for writing/deleting temporary files
 const tmp = require('tmp'); // Library for creating temporary file paths
 const { URLSearchParams } = require('url'); // Import URLSearchParams
+const { GoogleGenerativeAI } = require('@google/generative-ai'); // Added for Gemini
+require('dotenv').config(); // Added to load .env variables
 const {
     requireLogin,
     requireOwnership,
@@ -16,6 +18,14 @@ const {
 const db = require('../models/db'); // Import database functions from the model
 const { cleanupText, processPdfUpload } = require('../utils/textProcessing'); // Import text utils
 
+// --- Gemini AI Client Initialization ---
+// Ensure GEMINI_API_KEY is set in your .env file
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
+
+if (!genAI) {
+    console.warn("GEMINI_API_KEY not found in .env file. AI summarization feature will be disabled.");
+}
 // --- Helper Functions ---
 
 /**
@@ -39,64 +49,7 @@ function buildRedirectUrl(basePath, params) {
  * Cleans text extracted from PDFs or submitted via textarea.
  * Handles common accent issues from pdftotext and normalizes Unicode.
 
-// Helper function to process PDF upload using pdftotext
-async function processPdfUpload(uploadedFile) {
-    if (process.env.NODE_ENV === 'development')
-        console.log(
-            `Processing uploaded PDF with pdftotext: ${uploadedFile.originalname}`
-        );
-    let tempFilePath = null;
-    try {
-        tempFilePath = tmp.tmpNameSync({ postfix: '.pdf' });
-        if (process.env.NODE_ENV === 'development')
-            console.log(`Created temp file: ${tempFilePath}`);
-
-        fs.writeFileSync(tempFilePath, uploadedFile.buffer);
-
-        const extractedText = execFileSync(
-            'pdftotext',
-            ['-enc', 'UTF-8', tempFilePath, '-'],
-            { encoding: 'utf8' }
-        ).trim();
-        if (process.env.NODE_ENV === 'development')
-            console.log(
-                `Extracted ${extractedText.length} characters using pdftotext.`
-            );
-
-        if (!extractedText) {
-            // Throw specific error for empty extraction
-            throw new Error(
-                'Could not extract text using pdftotext. PDF might be empty or image-based.'
-            );
-        }
-        return extractedText; // Return raw extracted text
-    } catch (execError) {
-        console.error('Error executing pdftotext:', execError);
-        if (execError.code === 'ENOENT') {
-            throw new Error(
-                'Error processing PDF: pdftotext command not found. Please ensure Poppler utilities are installed and in the system PATH.'
-            );
-        } else if (execError.message.includes('Could not extract text')) {
-            // Re-throw the specific error from above
-            throw execError;
-        } else {
-            throw new Error(`Error processing PDF with pdftotext: ${execError.message}`);
-        }
-    } finally {
-        if (tempFilePath && fs.existsSync(tempFilePath)) {
-            try {
-                fs.unlinkSync(tempFilePath);
-                if (process.env.NODE_ENV === 'development')
-                    console.log(`Cleaned up temp file: ${tempFilePath}`);
-            } catch (cleanupError) {
-                console.error(
-                    `Error cleaning up temp file ${tempFilePath}:`,
-                    cleanupError
-                );
-            }
-        }
-    }
-}
+// processPdfUpload function removed, now imported from utils/textProcessing.js
 
 // --- Multer Configuration for PDF Uploads ---
 // Configure where and how uploaded files are stored
@@ -587,6 +540,103 @@ router.post(
         }
     }
 );
+
+// --- Summarization Route ---
+
+/**
+ * Route: POST /texts/summarize/:id
+ * Description: Summarizes a given text using AI and saves it as a new text.
+ * Middleware: requireLogin, requireOwnership (to ensure user owns the text being summarized)
+ */
+router.post('/texts/summarize/:id', requireLogin, requireOwnership, async (req, res) => {
+    if (!geminiModel) {
+        return res.status(503).json({ message: 'AI Service is not configured or unavailable. Missing API Key.' });
+    }
+
+    try {
+        const originalTextId = req.params.id; // Renamed from text_id for clarity
+        const userId = req.session.user.id;
+
+        // req.text is populated by requireOwnership middleware
+        const originalText = req.text;
+
+        if (!originalText) {
+            // This case should ideally be caught by requireOwnership, but double-check
+            return res.status(404).json({ message: 'Original text not found or not owned by user.' });
+        }
+
+        if (!originalText.content || originalText.content.trim().length === 0) {
+             return res.status(400).json({ message: 'Cannot summarize empty text.' });
+        }
+
+        const prompt = `Detect the language of the following text and provide a concise summary **in that same language**:\n\n---\n${originalText.content}\n---`;
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Sending prompt to Gemini for text ID ${originalTextId} (first 100 chars): ${prompt.substring(0, 100)}...`);
+        }
+
+        const result = await geminiModel.generateContent(prompt);
+        const response = await result.response;
+        const summaryContent = response.text();
+
+        if (!summaryContent) {
+            console.error(`Gemini API did not return content for text ID: ${originalTextId}`);
+            throw new Error("AI did not return a summary.");
+        }
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Received summary from Gemini (first 100 chars): ${summaryContent.substring(0, 100)}...`);
+        }
+
+        // Create a new text entry for the summary
+        // Save in the same category as the original text
+        const newTextId = db.add_text(
+            userId,
+            `Summary of: ${originalText.title}`,
+            summaryContent.trim(), // Trim the summary content
+            originalText.category_id // Save summary in the same folder as the original
+        );
+
+        if (newTextId === -1) {
+             console.error(`Failed to save summary to DB for original text ID: ${originalTextId}, User ID: ${userId}`);
+             throw new Error('Failed to save the summary to the database.');
+        }
+
+         const newTextTitle = `Summary of: ${originalText.title}`; // Get the title for the response
+         if (process.env.NODE_ENV === 'development') {
+            console.log(`Summary saved as new text ID: ${newTextId}, Title: ${newTextTitle}`);
+         }
+
+        res.status(201).json({
+            message: 'Summary created successfully',
+            newTextId: newTextId,
+            newTextTitle: newTextTitle
+        });
+
+    } catch (error) {
+        console.error(`Error summarizing text ID ${req.params.id}:`, error);
+        let errorMessage = "Failed to summarize text due to an internal error.";
+        let statusCode = 500;
+
+        if (error.message.includes("AI did not return")) {
+            errorMessage = error.message;
+            statusCode = 502; // Bad Gateway (issue communicating with AI)
+        } else if (error.message.includes("FETCH_ERROR") || error.message.includes("request to https://generativelanguage.googleapis.com failed")) {
+             errorMessage = "Network error communicating with AI service.";
+             statusCode = 504; // Gateway Timeout
+        } else if (error.message.includes("API key not valid")) {
+             errorMessage = "AI Service Error: Invalid API Key.";
+             statusCode = 503; // Service Unavailable (config issue)
+        } else if (error.message.includes('Failed to save the summary')) {
+             errorMessage = error.message;
+             statusCode = 500; // Internal DB error
+        }
+        // Consider more specific error handling based on AI API responses if needed
+
+        res.status(statusCode).json({ message: errorMessage, details: error.message });
+    }
+});
+
 
 /**
  * Route: POST /delete_text/:text_id
