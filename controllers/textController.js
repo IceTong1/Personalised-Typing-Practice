@@ -569,7 +569,7 @@ router.post('/texts/summarize/:id', requireLogin, requireOwnership, async (req, 
              return res.status(400).json({ message: 'Cannot summarize empty text.' });
         }
 
-        const prompt = `Detect the language of the following text and provide a concise summary **in that same language**:\n\n---\n${originalText.content}\n---`;
+        const prompt = `Detect the language of the following text and provide a detailed summary (in that same language):\n\n---\n${originalText.content}\n---`;
 
         if (process.env.NODE_ENV === 'development') {
             console.log(`Sending prompt to Gemini for text ID ${originalTextId} (first 100 chars): ${prompt.substring(0, 100)}...`);

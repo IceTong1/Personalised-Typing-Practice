@@ -17,9 +17,34 @@ document.addEventListener('DOMContentLoaded', () => {
     let folderToDeleteName = null; // Keep variable, disable lint warning
     let folderToDeleteElement = null; // The button's parent list item/div if needed for removal
 
+    const alertPlaceholder = document.getElementById('alert-placeholder'); // Get the placeholder div
+
     if (deleteModalElement) {
         deleteModalInstance = new bootstrap.Modal(deleteModalElement);
         // console.log("Delete Modal Instance:", deleteModalInstance); // DEBUG: Check instance
+    }
+
+    // --- Helper Function for Bootstrap Alerts ---
+    function showAlert(message, type = 'info') {
+        if (!alertPlaceholder) return; // Do nothing if placeholder doesn't exist
+
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+
+        alertPlaceholder.append(wrapper);
+
+        // Optional: Auto-dismiss after some time
+        setTimeout(() => {
+             const alertInstance = bootstrap.Alert.getOrCreateInstance(wrapper.firstChild);
+             if (alertInstance) {
+                 alertInstance.close();
+             }
+        }, 5000); // Auto-dismiss after 5 seconds
     }
 
     // Function to show confirmation modal for TEXTS
@@ -306,20 +331,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 .then((result) => {
                     console.log('Summarization successful:', result);
-                    alert(`Summary created successfully! New text title: ${result.newTextTitle}`);
-                    // Refresh the page to show the new summary text
-                    window.location.reload();
+                    showAlert(`Summary created successfully! New text title: "${result.newTextTitle}". The page will reload shortly.`, 'success');
+                    // Restore button state immediately after success message shown
+                    summarizeButton.disabled = false;
+                    summarizeButton.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
+                    summarizeButton.title = 'Summarize with AI'; // Restore title
+
+                    // Refresh the page after a short delay to allow user to see the message
+                    setTimeout(() => {
+                         window.location.reload();
+                    }, 3000); // Reload after 3 seconds
                 })
                 .catch((error) => {
                     console.error('Error summarizing text:', error);
-                    alert(`Failed to summarize text: ${error.message}`);
+                    showAlert(`Failed to summarize text: ${error.message}`, 'danger'); // Use Bootstrap alert for errors
                     // Restore button state on error
                     summarizeButton.disabled = false;
                     summarizeButton.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
                     summarizeButton.title = 'Summarize with AI'; // Restore title
                 });
-                // Note: No finally block needed here as reload happens on success,
-                // and catch handles restoring the button on failure.
+                // No finally block needed here as success/catch handle button state and reload
         }
     });
 });
