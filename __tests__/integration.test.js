@@ -34,6 +34,7 @@ jest.mock('../models/db', () => ({
     save_progress: jest.fn(),
     get_categories: jest.fn(), // Added for /texts
     get_all_categories_flat: jest.fn(), // Added for /texts and forms - Should return {id, path_name, level}
+    get_category: jest.fn(), // Added for category operations
     create_category: jest.fn(), // Added for category routes
     delete_category: jest.fn(), // Added for category routes - Should return boolean
     is_category_empty: jest.fn(), // Added for category delete check
@@ -686,12 +687,12 @@ describe('Integration Tests', () => {
         });
 
         // --- API Routes --- Moved Inside ---
-        describe('POST /api/progress', () => {
+        describe('POST /practice/api/progress', () => { // UPDATED ROUTE
             it('should save progress and return success', async () => {
                 db.save_progress.mockReturnValue(true); // Mock successful save
 
                 const res = await agent
-                    .post('/api/progress') // Updated path
+                    .post('/practice/api/progress') // Updated path
                     .send({ text_id: '1', progress_index: '50' });
 
                 expect(res.statusCode).toEqual(200);
@@ -701,7 +702,7 @@ describe('Integration Tests', () => {
 
             it('should return 400 if text_id is missing', async () => {
                 const res = await agent
-                    .post('/api/progress') // Updated path
+                    .post('/practice/api/progress') // Updated path
                     .send({ progress_index: '50' });
 
                 expect(res.statusCode).toEqual(400);
@@ -712,7 +713,7 @@ describe('Integration Tests', () => {
 
             it('should return 400 if progress_index is invalid', async () => {
                 const res = await agent
-                    .post('/api/progress') // Updated path
+                    .post('/practice/api/progress') // Updated path
                     .send({ text_id: '1', progress_index: 'abc' });
 
                 expect(res.statusCode).toEqual(400);
@@ -725,7 +726,7 @@ describe('Integration Tests', () => {
                 db.save_progress.mockReturnValue(false); // Simulate DB error
 
                 const res = await agent
-                    .post('/api/progress') // Updated path
+                    .post('/practice/api/progress') // Updated path
                     .send({ text_id: '1', progress_index: '50' });
 
                 expect(res.statusCode).toEqual(500);
@@ -805,8 +806,12 @@ describe('Integration Tests', () => {
 
         describe('POST /categories/:id/delete', () => {
             it('should delete an empty category and redirect', async () => {
-                db.is_category_empty.mockReturnValue(true); // Mock check for emptiness
-                db.delete_category.mockReturnValue(true); // Mock successful delete (returns boolean)
+                db.is_category_empty.mockReturnValue(true);
+                db.delete_category.mockReturnValue(true);
+                db.get_category.mockReturnValue({
+                    id: 10,
+                    parent_category_id: null
+                });
 
                 const res = await agent.post('/categories/10/delete');
 
@@ -816,33 +821,44 @@ describe('Integration Tests', () => {
                 );
                 expect(db.is_category_empty).toHaveBeenCalledWith(10, 999);
                 expect(db.delete_category).toHaveBeenCalledWith(10, 999);
+                expect(db.get_category).toHaveBeenCalledWith(10, 999);
             });
 
             it('should fail to delete a non-empty category and redirect', async () => {
-                db.is_category_empty.mockReturnValue(false); // Mock check for non-emptiness
+                db.is_category_empty.mockReturnValue(false);
+                db.get_category.mockReturnValue({
+                    id: 11,
+                    parent_category_id: 5
+                });
 
                 const res = await agent.post('/categories/11/delete');
 
                 expect(res.statusCode).toEqual(302);
                 expect(res.headers.location).toEqual(
-                    '/texts?message=Cannot+delete+folder.+It+is+not+empty.'
+                    '/texts?message=Cannot+delete+folder.+It+is+not+empty.&category_id=5'
                 );
                 expect(db.is_category_empty).toHaveBeenCalledWith(11, 999);
                 expect(db.delete_category).not.toHaveBeenCalled();
+                expect(db.get_category).toHaveBeenCalledWith(11, 999);
             });
 
             it('should handle database error on category deletion', async () => {
-                db.is_category_empty.mockReturnValue(true); // Assume empty check passes
-                db.delete_category.mockReturnValue(false); // Mock DB delete failure (returns boolean)
+                db.is_category_empty.mockReturnValue(true);
+                db.delete_category.mockReturnValue(false);
+                db.get_category.mockReturnValue({
+                    id: 12,
+                    parent_category_id: 3
+                });
 
                 const res = await agent.post('/categories/12/delete');
 
                 expect(res.statusCode).toEqual(302);
                 expect(res.headers.location).toEqual(
-                    '/texts?message=Failed+to+delete+folder.+Folder+not+found.'
+                    '/texts?message=Failed+to+delete+folder.+It+might+have+already+been+removed+or+an+error+occurred.&category_id=3'
                 );
                 expect(db.is_category_empty).toHaveBeenCalledWith(12, 999);
                 expect(db.delete_category).toHaveBeenCalledWith(12, 999);
+                expect(db.get_category).toHaveBeenCalledWith(12, 999);
             });
         });
 

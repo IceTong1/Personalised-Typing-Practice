@@ -9,7 +9,10 @@ const fs = require('fs'); // File system module (needed for error view check)
 // --- Controller Imports ---
 // Import route handlers defined in separate controller files
 const authController = require('./controllers/authController'); // Handles authentication routes
-const textController = require('./controllers/textController'); // Handles text management and practice routes
+const textController = require('./controllers/textController'); // Handles core text management routes (list, add, edit, delete, summarize)
+const categoryController = require('./controllers/categoryController'); // Handles category (folder) routes
+const practiceController = require('./controllers/practiceController'); // Handles practice session routes
+const profileController = require('./controllers/profileController'); // Handles profile routes
 
 // --- Middleware Imports ---
 // Middleware functions (requireLogin, requireOwnership) are imported directly by controllers
@@ -62,7 +65,10 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // Mount Authentication & Text Controllers
 app.use('/', authController); // Handles /login, /register, /logout etc.
-app.use('/', textController); // Handles /profile, /texts, /practice etc.
+app.use('/', textController); // Mount text routes under root (e.g., /texts, /add_text)
+app.use('/', profileController); // Mount profile routes under root (/profile)
+app.use('/categories', categoryController); // Mount category routes under /categories (e.g., /categories, /categories/:id/rename)
+app.use('/practice', practiceController); // Mount practice routes under /practice (e.g., /practice/:id, /practice/api/progress)
 
 // --- Error Handling Middleware (Generic - place after all routes) ---
 // Catch-all for other errors not handled by specific routes

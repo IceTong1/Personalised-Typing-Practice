@@ -8,7 +8,7 @@ const multer = require('multer'); // Ensure multer is required before use
 const { execFileSync } = require('child_process'); // For running external commands synchronously (pdftotext)
 const fs = require('fs'); // File system module for writing/deleting temporary files
 const tmp = require('tmp'); // Library for creating temporary file paths
-const { URLSearchParams } = require('url'); // Import URLSearchParams
+// const { URLSearchParams } = require('url'); // No longer needed here, moved to urlUtils
 const { GoogleGenerativeAI } = require('@google/generative-ai'); // Added for Gemini
 require('dotenv').config(); // Added to load .env variables
 const {
@@ -17,6 +17,7 @@ const {
 } = require('../middleware/authMiddleware'); // Import authentication middleware
 const db = require('../models/db'); // Import database functions from the model
 const { cleanupText, processPdfUpload } = require('../utils/textProcessing'); // Import text utils
+const { buildRedirectUrl } = require('../utils/urlUtils'); // Import URL utils
 
 // --- Gemini AI Client Initialization ---
 // Ensure GEMINI_API_KEY is set in your .env file
@@ -28,22 +29,7 @@ if (!genAI) {
 }
 // --- Helper Functions ---
 
-/**
- * Builds a redirect URL with query parameters, handling '?' vs '&' correctly.
- * @param {string} basePath The base path (e.g., '/texts')
- * @param {object} params An object containing query parameters (key-value pairs).
- * @returns {string} The full redirect URL.
- */
-function buildRedirectUrl(basePath, params) {
-    const searchParams = new URLSearchParams();
-    Object.keys(params).forEach((key) => {
-        if (params[key] !== null && params[key] !== undefined) {
-            searchParams.append(key, params[key]);
-        }
-    });
-    const queryString = searchParams.toString();
-    return queryString ? `${basePath}?${queryString}` : basePath;
-}
+// buildRedirectUrl function moved to utils/urlUtils.js
 
 /**
  * Cleans text extracted from PDFs or submitted via textarea.
@@ -58,41 +44,7 @@ function buildRedirectUrl(basePath, params) {
 
 // --- Text Management Routes ---
 
-/**
- * Route: GET /profile
- * Description: Displays the user's profile page, showing a list of their saved texts.
- * Middleware: Requires the user to be logged in (`requireLogin`).
- */
-router.get('/profile', requireLogin, (req, res) => {
-    try {
-        // Get user ID from the session
-        const userId = req.session.user.id;
-
-        // --- Fetch User Statistics (Placeholder) ---
-        // TODO: Implement db.get_user_stats(userId) in models/db.js
-        // For now, using placeholder data
-        const stats = {
-            textsPracticed: 0, // Example stat
-            totalPracticeTime: '0h 0m', // Example stat
-            averageAccuracy: 0, // Example stat
-        };
-        // const stats = db.get_user_stats(userId); // Uncomment when implemented
-
-        if (process.env.NODE_ENV === 'development')
-            console.log(`Fetching profile stats for user ID: ${userId}`);
-
-        // Render the 'profile.ejs' view
-        res.render('profile', {
-            user: req.session.user, // Pass user data for the header/navigation
-            stats, // Pass the user statistics object
-            message: req.query.message || null, // Pass any message from query params
-        });
-    } catch (error) {
-        // Handle potential errors during database fetching or rendering
-        console.error('Error fetching profile stats:', error);
-        res.status(500).send('Error loading profile.'); // Send a generic server error response
-    }
-});
+// Profile routes moved to profileController.js
 
 /**
  * Route: GET /texts
@@ -715,121 +667,10 @@ router.post(
     }
 );
 
-/**
- * Route: GET /practice/:text_id
- * Description: Displays the typing practice page for a specific text.
- * Middleware:
- *   - `requireLogin`: Ensures user is logged in.
- *   - `requireOwnership`: Ensures the logged-in user owns the text specified by `:text_id`.
- *                         Attaches the fetched text object to `req.text`.
- */
-router.get('/practice/:text_id', requireLogin, requireOwnership, (req, res) => {
-    // The requireOwnership middleware already fetched the text and verified ownership.
-    // It also attached the text object to req.text.
-    // Now, we need to pass the user_id to get_text to fetch progress as well.
-    const textId = req.params.text_id;
-    const userId = req.session.user.id;
-
-    try {
-        // Fetch text data *including* user progress
-        const textData = db.get_text(textId, userId); // Use original get_text
-
-        if (!textData) {
-            // This case should ideally be caught by requireOwnership, but check again.
-            console.error(
-                `Text not found in GET /practice/:text_id even after ownership check? ID: ${textId}`
-            );
-            return res.redirect('/texts?message=Text not found.'); // Redirect to the new texts page
-        }
-
-        if (process.env.NODE_ENV === 'development')
-            console.log(
-                `Rendering practice page for text ID: ${textId}, User ID: ${userId}, Progress: ${textData.progress_index}`
-            );
-        // Render the 'practice.ejs' view, passing user and the full text data (including progress)
-        res.render('practice', {
-            user: req.session.user,
-            text: textData, // Pass the object containing id, title, content, progress_index
-        });
-    } catch (error) {
-        console.error(
-            `Error fetching text/progress for practice page (Text ID: ${textId}, User ID: ${userId}):`,
-            error
-        );
-        res.redirect('/texts?message=Error loading practice text.'); // Redirect to the new texts page
-    }
-});
-
-/**
- * Route: POST /save_progress
- * Description: Saves the user's typing progress for a specific text.
- *              Expects 'text_id' and 'progress_index' in the request body.
- * Middleware: Requires the user to be logged in (`requireLogin`).
- */
-router.post('/api/progress', requireLogin, (req, res) => {
-    // Changed route path to match client-side
-    // Global bodyParser.json() middleware in server.js already handles parsing
-    const { text_id, progress_index } = req.body;
-    const user_id = req.session.user.id;
-
-    // Basic validation
-    if (text_id === undefined || progress_index === undefined) {
-        console.error(
-            `Save progress failed: Missing text_id or progress_index. Body:`,
-            req.body
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Missing required data.' });
-    }
-
-    // Convert to numbers just in case they came as strings
-    const textIdNum = parseInt(text_id, 10); // Already has radix 10
-    const progressIndexNum = parseInt(progress_index, 10); // Already has radix 10
-
-    if (
-        Number.isNaN(textIdNum) ||
-        Number.isNaN(progressIndexNum) ||
-        progressIndexNum < 0
-    ) {
-        console.error(
-            `Save progress failed: Invalid data types or negative index. text_id: ${text_id}, progress_index: ${progress_index}`
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Invalid data.' });
-    }
-
-    try {
-        // TODO: Optional - Add a check here to verify the user actually owns textIdNum before saving progress?
-        // This adds DB overhead but increases security if API is exposed differently.
-        // For now, assume requireLogin is sufficient protection as only logged-in users can reach this.
-
-        const success = db.save_progress(user_id, textIdNum, progressIndexNum);
-
-        if (success) {
-            // console.log(`Progress saved via API: User ${user_id}, Text ${textIdNum}, Index ${progressIndexNum}`); // Optional logging
-            res.status(200).json({ success: true });
-        } else {
-            console.error(
-                `Save progress DB error: User ${user_id}, Text ${textIdNum}`
-            );
-            res.status(500).json({
-                success: false,
-                message: 'Database error saving progress.',
-            });
-        }
-    } catch (error) {
-        console.error(
-            `Unexpected error saving progress: User ${user_id}, Text ${textIdNum}:`,
-            error
-        );
-        res.status(500).json({
-            success: false,
-            message: 'Server error saving progress.',
-        });
-    }
-});
+// --- Practice routes moved to controllers/practiceController.js ---
+// --- Text order route moved to controllers/practiceController.js (or could be textController?) ---
+// Let's keep /update_text_order here for now as it relates to the /texts view listing.
+// Re-adding /update_text_order route here:
 
 /**
  * Route: POST /update_text_order
@@ -881,258 +722,9 @@ router.post('/update_text_order', requireLogin, (req, res) => {
     }
 });
 
-// --- Category (Folder) Management Routes ---
+// --- Category routes moved to controllers/categoryController.js ---
 
-/**
- * Route: POST /categories
- * Description: Creates a new category (folder).
- * Middleware: requireLogin
- * Body: { name: string, parent_category_id: number|null }
- */
-router.post('/categories', requireLogin, (req, res) => {
-    const { name, parent_category_id } = req.body;
-    const userId = req.session.user.id;
-    const parentId = parent_category_id
-        ? parseInt(parent_category_id, 10)
-        : null;
-
-    if (Number.isNaN(parentId) && parent_category_id != null) {
-        // Check if parsing failed but it wasn't explicitly null
-        return res.redirect(
-            buildRedirectUrl('/texts', {
-                message: 'Invalid parent category ID.',
-            })
-        );
-    }
-    if (!name || name.trim().length === 0) {
-        return res.redirect(
-            buildRedirectUrl('/texts', {
-                message: 'Folder name cannot be empty.',
-                category_id: parentId,
-            })
-        );
-    }
-
-    try {
-        // TODO: Add check to ensure parentId (if not null) belongs to the user
-        const newCategoryId = db.create_category(userId, name.trim(), parentId);
-        if (newCategoryId !== -1) {
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Category created: ID ${newCategoryId}, Name "${name.trim()}", User ${userId}, Parent ${parentId}`
-                );
-            // Construct redirect URL carefully
-            res.redirect(
-                buildRedirectUrl('/texts', {
-                    message: 'Folder created successfully!',
-                    category_id: parentId,
-                })
-            );
-        } else {
-            console.warn(
-                `Failed to create category "${name.trim()}" for user ${userId}, Parent ${parentId} (likely name conflict)`
-            );
-            // Construct redirect URL carefully
-            res.redirect(
-                buildRedirectUrl('/texts', {
-                    message:
-                        'Failed to create folder. Name might already exist.',
-                    category_id: parentId,
-                })
-            );
-        }
-    } catch (error) {
-        console.error(
-            `Error creating category "${name.trim()}" for user ${userId}:`,
-            error
-        );
-        // Construct redirect URL carefully
-        res.redirect(
-            buildRedirectUrl('/texts', {
-                message: 'Server error creating folder.',
-                category_id: parentId,
-            })
-        );
-    }
-});
-
-/**
- * Route: POST /categories/:category_id/rename
- * Description: Renames an existing category (folder).
- * Middleware: requireLogin
- * Params: category_id
- * Body: { new_name: string }
- */
-router.post('/categories/:category_id/rename', requireLogin, (req, res) => {
-    const categoryId = parseInt(req.params.category_id, 10); // Already has radix 10
-    const { new_name } = req.body;
-    const userId = req.session.user.id;
-
-    if (Number.isNaN(categoryId)) {
-        return res.redirect(
-            buildRedirectUrl('/texts', { message: 'Invalid category ID.' })
-        );
-    }
-    const trimmed_new_name = new_name.trim();
-    if (!trimmed_new_name || trimmed_new_name.length === 0) {
-        // Try to fetch parent ID even for this validation failure for better redirect
-        let parentIdForRedirect = null;
-        try {
-            const categoryInfo = db.get_category(categoryId, userId);
-            if (categoryInfo) {
-                parentIdForRedirect = categoryInfo.parent_category_id;
-            }
-        } catch (fetchErr) {
-            /* Ignore error, redirect to root */
-        }
-        return res.redirect(
-            buildRedirectUrl('/texts', {
-                message: 'New folder name cannot be empty.',
-                category_id: parentIdForRedirect,
-            })
-        );
-    }
-
-    let categoryInfo = null; // Declare outside try block
-    try {
-        // Fetch category details first to get parent ID for redirects and ensure ownership
-        categoryInfo = db.get_category(categoryId, userId);
-        if (!categoryInfo) {
-            console.warn(
-                `Attempt to rename non-existent or non-owned category ID ${categoryId} by user ${userId}`
-            );
-            return res.redirect(
-                buildRedirectUrl('/texts', {
-                    message: 'Folder not found or access denied.',
-                })
-            );
-        }
-        const parentId = categoryInfo.parent_category_id; // Use this for redirects
-
-        const success = db.rename_category(
-            categoryId,
-            trimmed_new_name,
-            userId
-        );
-        if (success) {
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Category renamed: ID ${categoryId}, New Name "${trimmed_new_name}", User ${userId}`
-                );
-            // Use fetched parent ID in redirect
-            res.redirect(
-                buildRedirectUrl('/texts', {
-                    message: 'Folder renamed successfully!',
-                    category_id: parentId,
-                })
-            );
-        } else {
-            console.warn(
-                `Failed to rename category ID ${categoryId} to "${trimmed_new_name}" for user ${userId} (not found, not owned, or name conflict)`
-            );
-            // Use fetched parent ID in redirect
-            res.redirect(
-                buildRedirectUrl('/texts', {
-                    message:
-                        'Failed to rename folder. Name might already exist or folder not found.',
-                    category_id: parentId,
-                })
-            );
-        }
-    } catch (error) {
-        console.error(
-            `Error renaming category ID ${categoryId} for user ${userId}:`,
-            error
-        );
-        // Use fetched parent ID if available, otherwise redirect to root
-        const parentIdOnError = categoryInfo
-            ? categoryInfo.parent_category_id
-            : null;
-        res.redirect(
-            buildRedirectUrl('/texts', {
-                message: 'Server error renaming folder.',
-                category_id: parentIdOnError,
-            })
-        );
-    }
-});
-
-/**
- * Route: POST /categories/:category_id/delete
- * Description: Deletes an empty category (folder).
- * Middleware: requireLogin
- * Params: category_id
- */
-router.post('/categories/:category_id/delete', requireLogin, (req, res) => {
-    const categoryId = parseInt(req.params.category_id, 10); // Already has radix 10
-    const userId = req.session.user.id;
-
-    if (Number.isNaN(categoryId)) {
-        return res.redirect(
-            buildRedirectUrl('/texts', { message: 'Invalid category ID.' })
-        ); // Already fixed, ensure it stays
-    }
-
-    try {
-        // TODO: Fetch category details to get parent ID for redirect
-        const isEmpty = db.is_category_empty(categoryId, userId);
-        if (!isEmpty) {
-            console.warn(
-                `Attempt to delete non-empty category ID ${categoryId} by user ${userId}`
-            );
-            // TODO: Use fetched parent ID in redirect
-            // TODO: Use fetched parent ID in redirect
-            return res.redirect(
-                buildRedirectUrl('/texts', {
-                    message:
-                        'Cannot delete folder. It is not empty.' /* , category_id: parentId */,
-                })
-            );
-        }
-
-        const success = db.delete_category(categoryId, userId);
-        if (success) {
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Category deleted: ID ${categoryId}, User ${userId}`
-                );
-            // TODO: Use fetched parent ID in redirect
-            // TODO: Use fetched parent ID in redirect
-            res.redirect(
-                buildRedirectUrl('/texts', {
-                    message:
-                        'Folder deleted successfully!' /* , category_id: parentId */,
-                })
-            );
-        } else {
-            console.warn(
-                `Failed to delete category ID ${categoryId} for user ${userId} (not found or not owned)`
-            );
-            // TODO: Use fetched parent ID in redirect
-            // TODO: Use fetched parent ID in redirect
-            res.redirect(
-                buildRedirectUrl('/texts', {
-                    message:
-                        'Failed to delete folder. Folder not found.' /* , category_id: parentId */,
-                })
-            );
-        }
-    } catch (error) {
-        console.error(
-            `Error deleting category ID ${categoryId} for user ${userId}:`,
-            error
-        );
-        // TODO: Use fetched parent ID in redirect
-        // Redirect to root on unexpected error
-        res.redirect(
-            buildRedirectUrl('/texts', {
-                message: 'Server error deleting folder.',
-            })
-        );
-    }
-});
-
-// --- Route for moving text removed ---
+// --- Route for moving text removed --- (This comment was already here)
 
 // --- Export Router ---
 // Make the router object available for mounting in server.js

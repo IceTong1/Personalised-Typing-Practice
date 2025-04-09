@@ -1,0 +1,77 @@
+# Project Architecture Summary
+
+## Core Components
+
+1. **Controllers** (route handlers):
+   - authController.js: Handles authentication (login/register/logout)
+   - textController.js: Manages text CRUD operations
+   - profileController.js: Handles user profile pages
+   - practiceController.js: Manages typing practice sessions
+   - categoryController.js: Handles folder/category operations
+
+2. **Services** (business logic):
+   - textService.js: Contains text processing and database operations
+
+3. **Models** (data access):
+   - db.js: Database interface using SQLite
+
+4. **Middleware**:
+   - authMiddleware.js: Authentication and authorization checks
+
+## Key Features
+
+### Text Management
+- Add texts via textarea or PDF upload
+- Edit/delete texts
+- Organize texts in folders/categories
+- Text processing (cleanup, PDF extraction)
+
+### Typing Practice
+- Track progress through texts
+- Save position in long texts
+- Practice statistics
+
+### User Profiles
+- View saved texts
+- See practice statistics
+- Manage account
+
+## Technical Stack
+
+- Backend: Node.js with Express
+- Database: SQLite
+- PDF Processing: pdftotext command line tool
+- Session Management: express-session with SQLite store
+- Testing: Jest
+
+## File Structure
+
+controllers/
+  authController.js
+  textController.js
+  profileController.js
+  practiceController.js
+  categoryController.js
+
+services/
+  textService.js
+
+models/
+  db.js
+
+middleware/
+  authMiddleware.js
+
+views/
+  *.ejs templates
+
+public/
+  Static assets (CSS, JS)
+
+## Workflow
+
+1. Routes defined in controllers
+2. Business logic handled by services
+3. Data access through models
+4. Authentication via middleware
+5. Views rendered with EJS templates
