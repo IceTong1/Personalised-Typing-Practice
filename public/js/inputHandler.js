@@ -1,6 +1,7 @@
 // public/js/inputHandler.js
 import { renderCustomInput, updateCursorPosition, applyEffect } from './domUtils.js';
-
+import { calculateAccuracy } from './statsUtils.js'; // Import accuracy calculation
+import { sendLineCompletionStats } from './apiUtils.js'; // Import the new API function
 /**
  * Creates an input handler module for the typing practice.
  * @param {object} dependencies - Object containing necessary dependencies.
@@ -32,7 +33,13 @@ function createInputHandler(dependencies) {
         calculateStartIndexForLine
     } = dependencies;
 
-    // --- Internal Helper Functions (Moved from practice.js) ---
+    // --- Internal State for Line Tracking ---
+    let lineStartTime = null;
+    let lineTypedEntries = 0;
+    // lineErrors variable removed, using lineErrorPositions Set instead
+    let lineErrorPositions = new Set(); // Tracks indices within the line where errors occurred
+
+    // --- Internal Helper Functions ---
 
     /**
      * Processes character input against the target spans for the current block.
@@ -153,49 +160,38 @@ function createInputHandler(dependencies) {
      * @param {number} linesInCurrentBlock - The total number of lines displayed in the current block.
      * @returns {boolean} - True if the *entire block* was completed and handled, false otherwise.
      */
-    // isLineCorrect is now isLineReadyForCompletion (text correct + trailing space)
-    function checkAndHandleIndividualLineCompletion(isLineReadyForCompletion, inputLength, currentLineText, currentLineIndexInBlock, linesInCurrentBlock) {
-        // Condition now checks the flag passed from handleHiddenInput
+    function checkAndHandleIndividualLineCompletion(isLineReadyForCompletion, currentLineText, currentLineIndexInBlock, linesInCurrentBlock) {
         if (isLineReadyForCompletion && currentLineText.length > 0) {
             const absoluteLineIndex = practiceState.currentDisplayLineIndex + currentLineIndexInBlock;
             console.log(`Individual line ${absoluteLineIndex} complete.`);
             lineCompleteSound.play().catch((e) => console.log('Sound play interrupted'));
 
-            // --- Award Coin ---
-            fetch('/practice/line-complete', { // Updated path
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    // Add CSRF token header if necessary
-                },
-                // No body needed as user ID is from session
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success && data.newCoinCount !== null) {
-                    console.log(`Coin awarded! New count: ${data.newCoinCount}`);
-                    // Update the coin count in the header
-                    const coinCountElement = document.getElementById('coin-count');
-                    if (coinCountElement) {
-                        coinCountElement.textContent = data.newCoinCount;
-                    } else {
-                        console.warn('Could not find coin count element in header to update.');
-                    }
-                } else if (!data.success) {
-                     console.error('API call to award coin failed:', data.message);
-                } else {
-                    // Success was true, but newCoinCount was null (server-side fetch issue)
-                    console.warn('Coin likely awarded, but failed to retrieve updated count from server.');
-                }
-            })
-            .catch(error => {
-                console.error('Error calling coin award API:', error);
-            });
+            // --- Calculate Line Stats ---
+            const lineEndTime = performance.now();
+            const lineTimeSeconds = lineStartTime ? (lineEndTime - lineStartTime) / 1000 : 0;
+            // Calculate accuracy using the size of the error positions set
+            const currentLineErrors = lineErrorPositions.size;
+            const currentLineAccuracy = parseFloat(calculateAccuracy(lineTypedEntries, currentLineErrors)) || 0;
+
+            console.log(`Line Stats - Time: ${lineTimeSeconds.toFixed(2)}s, Accuracy: ${currentLineAccuracy}%, Entries: ${lineTypedEntries}, Errors: ${currentLineErrors}`);
+
+            // --- Send Line Stats & Award Coin ---
+            // Define the callback to update the coin display
+            const updateCoinDisplayCallback = (newCoinCount) => {
+                 const coinCountElement = document.getElementById('coin-count');
+                 if (coinCountElement) {
+                     coinCountElement.textContent = newCoinCount;
+                 } else {
+                     console.warn('Could not find coin count element in header to update.');
+                 }
+            };
+            // Call the combined API function
+            sendLineCompletionStats(lineTimeSeconds, currentLineAccuracy, updateCoinDisplayCallback);
+
+            // --- Reset Line Tracking ---
+            lineStartTime = null; // Will be reset when next line starts
+            lineTypedEntries = 0;
+            lineErrorPositions.clear(); // Clear the error set for the next line
 
             // --- Clear Input ---
             if (practiceState.hiddenInput) {
@@ -217,10 +213,11 @@ function createInputHandler(dependencies) {
                 renderLine(practiceState.currentDisplayLineIndex);
                 return true; // Block was completed
             } else {
-                // Not the last line, just update overall index to the start of the *next* line within the block
+                // Not the last line, just update overall index and reset line timer
                 practiceState.currentOverallCharIndex = calculateStartIndexForLine(absoluteLineIndex + 1);
-                console.log(`Line complete, but not end of block. New overall index: ${practiceState.currentOverallCharIndex}`);
-                // No need to re-render the block, just update stats
+                console.log(`Line complete, but not end of block. New overall index: ${practiceState.currentOverallCharIndex}. Resetting line timer.`);
+                lineStartTime = performance.now(); // Start timer for the next line within the block
+                // Update stats (completion % changes)
                 updateStats();
                 return false; // Block not completed yet
             }
@@ -231,8 +228,77 @@ function createInputHandler(dependencies) {
     // --- Event Handlers ---
 
     function handleKeyDown(event) {
-        // Minimal logic, keep as is for now
         // console.log('Keydown:', event.key);
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent default Enter behavior (e.g., newline in input)
+
+            // --- Replicate necessary checks from handleHiddenInput ---
+            // We need to know if the *current* line text is correct *before* Enter is pressed.
+            // This requires recalculating some state similar to handleHiddenInput,
+            // or accessing the state calculated in the *last* handleHiddenInput call.
+            // Let's try accessing the state, assuming handleHiddenInput ran just before.
+
+            const currentInput = practiceState.currentInputValue || ''; // Get current input value
+            const inputLength = currentInput.length;
+
+            // Find the current line details (similar logic as in handleHiddenInput)
+            const blockStartIndex = practiceState.currentDisplayLineIndex;
+            const linesInBlock = Math.min(practiceState.linesToShow, practiceState.lines.length - blockStartIndex);
+            let currentLineAbsoluteIndex = -1;
+            let currentLineIndexInBlock = -1;
+            let lengthOfCurrentLine = 0;
+            let textForCurrentLine = "";
+            let cumulativeLengthInBlock = 0;
+
+            for (let i = 0; i < linesInBlock; i++) {
+                const lineIdx = blockStartIndex + i;
+                 if (lineIdx >= practiceState.lines.length) break; // Boundary check
+                const lineText = practiceState.lines[lineIdx];
+                const lineStartIndexAbsolute = calculateStartIndexForLine(lineIdx);
+                const lineEndIndexAbsolute = lineStartIndexAbsolute + lineText.length;
+
+                if (practiceState.currentOverallCharIndex >= lineStartIndexAbsolute &&
+                    practiceState.currentOverallCharIndex <= lineEndIndexAbsolute) {
+
+                     if (practiceState.currentOverallCharIndex === lineEndIndexAbsolute && inputLength === 0 && i < linesInBlock - 1) {
+                       cumulativeLengthInBlock += lineText.length + 1;
+                       continue;
+                    }
+
+                    currentLineAbsoluteIndex = lineIdx;
+                    currentLineIndexInBlock = i;
+                    lengthOfCurrentLine = lineText.length;
+                    textForCurrentLine = lineText;
+                    break;
+                }
+                cumulativeLengthInBlock += lineText.length + (i < linesInBlock - 1 ? 1 : 0);
+            }
+
+             // Check if the input exactly matches the current line's text
+             const lineTextCorrect = currentInput === textForCurrentLine;
+
+            // --- Trigger Completion Logic ---
+            if (lineTextCorrect && textForCurrentLine.length > 0) {
+                 console.log("Enter pressed on correct line, triggering completion.");
+                 // Call the completion handler directly
+                 // Note: This bypasses the handleHiddenInput's usual flow for this specific case.
+                 const blockCompleted = checkAndHandleIndividualLineCompletion(
+                     true, // Force completion check since Enter was pressed on correct line
+                     textForCurrentLine,
+                     currentLineIndexInBlock,
+                     linesInBlock
+                 );
+                  // Update stats if the block wasn't completed by the call above
+                 if (!blockCompleted) {
+                     updateStats();
+                 }
+            } else {
+                 console.log("Enter pressed, but line is not correct or empty.");
+                 // Optionally play an incorrect sound or provide feedback
+                 incorrectSound.play().catch((e) => console.log('Sound play interrupted'));
+            }
+        }
+        // Allow other keys (like Backspace) to be handled by handleHiddenInput
     }
 
     function handleHiddenInput() {
@@ -242,9 +308,16 @@ function createInputHandler(dependencies) {
         const currentInput = practiceState.currentInputValue; // Use a shorter alias
         const inputLength = currentInput.length;
 
-        // Start timer if not running and text not complete
+        // Start timer (overall and line) if not running and text not complete
         if (!practiceState.timerRunning && practiceState.currentDisplayLineIndex < practiceState.lines.length) {
-            timerManager.start();
+            timerManager.start(); // Start overall timer
+            if (lineStartTime === null) { // Start line timer only if it's not already running
+                 lineStartTime = performance.now();
+                 // Reset line-specific stats whenever the main timer (re)starts
+                 lineTypedEntries = 0;
+                 lineErrorPositions.clear(); // Clear error set too
+                 console.log("Line timer (re)started and line stats reset.");
+            }
         }
 
         // Update visual input display and cursor
@@ -313,11 +386,15 @@ function createInputHandler(dependencies) {
         }
 
         // --- Process Input for the Current Line Only ---
-        practiceState.totalTypedEntries++; // Increment regardless of line
+        // Increment global and line entry counts
+        practiceState.totalTypedEntries++;
+        if (inputLength > previousInputValue.length) { // Only count new entries for line stats
+             lineTypedEntries++;
+        }
 
         // Compare currentInput against textForCurrentLine using spansForCurrentLine
         let lineTextCorrect = true; // Check if the text part matches
-        let lineErrors = 0;
+        // lineErrors variable removed
         let lastCharCorrect = false;
         let correctPrefixLengthOnLine = 0; // Correct prefix *of the text part*
 
@@ -329,10 +406,14 @@ function createInputHandler(dependencies) {
                 const isCorrect = typedChar === expectedChar;
 
                 const wasPreviouslyIncorrect = charSpan.classList.contains('incorrect');
-                if (!isCorrect && !wasPreviouslyIncorrect) {
-                    lineErrors++;
-                    practiceState.totalErrors++; // Increment global errors
-                    practiceState.errorsSinceLastPenalty++; // Increment penalty counter
+                // Track error positions regardless of correction or input direction
+                if (!isCorrect) {
+                    lineErrorPositions.add(index); // Add the index of the error
+                    // Increment global/penalty errors only for *new* incorrect characters
+                    if (!wasPreviouslyIncorrect && inputLength > previousInputValue.length) {
+                         practiceState.totalErrors++;
+                         practiceState.errorsSinceLastPenalty++;
+                    }
                 }
 
                 charSpan.classList.toggle('correct', isCorrect);
@@ -359,15 +440,19 @@ function createInputHandler(dependencies) {
         }
 
         // --- New Line Completion Logic ---
-        const isTrailingSpaceTyped = inputLength === lengthOfCurrentLine + 1 && currentInput.endsWith(' ');
-        const isLineReadyForCompletion = lineTextCorrect && isTrailingSpaceTyped;
+        // --- Line Completion Logic (Triggered by Enter in handleKeyDown now) ---
+        // We no longer check for trailing space here.
+        // The checkAndHandleIndividualLineCompletion function will still be called later,
+        // but the 'isLineReadyForCompletion' flag won't be set based on input events alone.
+        // We set it to false here to prevent accidental completion via handleHiddenInput.
+        const isLineReadyForCompletion = false; // Completion is handled by Enter keydown
 
         // Determine lastCharCorrect based on context (text or trailing space)
         if (inputLength === 0) {
             lastCharCorrect = false;
-        } else if (isTrailingSpaceTyped) {
-            lastCharCorrect = lineTextCorrect; // Space is "correct" if line was correct
-        } else if (inputLength > lengthOfCurrentLine) {
+        // } else if (isTrailingSpaceTyped) { // Removed this condition
+        //     lastCharCorrect = lineTextCorrect; // Space is "correct" if line was correct
+        } else if (inputLength > lengthOfCurrentLine) { // Kept this for handling typing past line end
             lastCharCorrect = false; // Typed something else or too many chars after line end
         } else { // Input is within or exactly at the line length
              const lastTypedIndex = inputLength - 1;
@@ -446,7 +531,10 @@ function createInputHandler(dependencies) {
 
         // Handle feedback (sound/effect) for the last typed character on this line
         // Pass lineTextCorrect to determine if the trailing space should trigger incorrect sound
-        handleCharacterFeedback(lastCharCorrect, inputLength, previousInputValue, spansForCurrentLine, lineTextCorrect, lengthOfCurrentLine);
+        // Don't provide feedback for the (now non-existent) trailing space check
+        if (inputLength <= lengthOfCurrentLine) { // Only give feedback for chars within the line text itself
+             handleCharacterFeedback(lastCharCorrect, inputLength, previousInputValue, spansForCurrentLine, lineTextCorrect, lengthOfCurrentLine);
+        }
 
         // Update overall progress index based on the correct prefix *on this line*
         practiceState.currentOverallCharIndex = startIndexOfCurrentLine + correctPrefixLengthOnLine;
@@ -456,9 +544,13 @@ function createInputHandler(dependencies) {
 
         // --- Check for Individual Line Completion ---
         // Use the new flag to check for completion
+        // --- Check for Individual Line Completion (Now primarily handled by Enter keydown) ---
+        // This call remains, but isLineReadyForCompletion will be false here unless
+        // explicitly set true elsewhere (which it isn't in this refactor).
+        // The actual completion logic is now triggered within handleKeyDown.
+        // We keep the call structure in case other completion triggers are added later.
         const blockCompleted = checkAndHandleIndividualLineCompletion(
-            isLineReadyForCompletion, // Use the new flag
-            inputLength, // Pass inputLength for potential future use, though condition changed
+            isLineReadyForCompletion, // This will be false from line 375's modification
             textForCurrentLine,
             currentLineIndexInBlock,
             linesInBlock
@@ -468,9 +560,9 @@ function createInputHandler(dependencies) {
         // (checkAndHandleIndividualLineCompletion updates stats if only a line was completed)
         if (!blockCompleted) {
             // If the line wasn't completed (didn't meet the new criteria), update stats
-            if (!isLineReadyForCompletion) {
-                 updateStats();
-            }
+            // Always update stats here now, as completion doesn't happen via this path.
+            // The updateStats call inside handleKeyDown handles the update *after* Enter completion.
+            updateStats();
         }
     }
 

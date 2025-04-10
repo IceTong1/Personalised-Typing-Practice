@@ -41,6 +41,7 @@ jest.mock('../models/db', () => ({
     rename_category: jest.fn(), // Added for category rename
     update_text_order: jest.fn(),
     get_user_details: jest.fn(), // Added for loadUserData middleware
+    get_user_stats: jest.fn(), // Added for profile stats
 }));
 
 describe('Integration Tests', () => {
@@ -62,6 +63,7 @@ describe('Integration Tests', () => {
         db.is_category_empty.mockClear();
         db.rename_category.mockClear();
         db.get_user_details.mockClear();
+        db.get_user_stats.mockClear(); // Clear the new mock
         // Default mock implementation for get_user_details in beforeEach
         db.get_user_details.mockImplementation((userId) => {
             if (userId) {
@@ -69,6 +71,15 @@ describe('Integration Tests', () => {
                 return { id: userId, username: `user${userId}`, coins: 0 };
             }
             return null;
+        });
+        // Default mock implementation for get_user_stats in beforeEach
+        db.get_user_stats.mockImplementation((userId) => {
+            // Return default stats for any valid user ID during tests
+            if (userId) {
+                 return { texts_practiced: 0, total_practice_time_seconds: 0, average_accuracy: 0 };
+            }
+            // Or handle specific user IDs if needed for certain tests
+            return { texts_practiced: 0, total_practice_time_seconds: 0, average_accuracy: 0 };
         });
     });
 
