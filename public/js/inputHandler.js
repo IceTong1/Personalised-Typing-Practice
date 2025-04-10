@@ -108,7 +108,7 @@ function createInputHandler(dependencies) {
         return { correctLength: nonNewlineCorrectCount, blockCorrect, blockErrors, lastCharCorrect };
     }
 
-    function handleCharacterFeedback(isCorrect, inputLength, previousInputValue, targetSpans) {
+    function handleCharacterFeedback(isCorrect, inputLength, previousInputValue, targetSpans, isLineTextCorrect, lineLength) {
          if (inputLength === 0) return;
 
         if (inputLength <= targetSpans.length) {
@@ -124,11 +124,21 @@ function createInputHandler(dependencies) {
                     applyEffect(lastCharSpan, 'effect-incorrect');
                  }
             }
-        } else { // Typed past end of line
-             if (inputLength > previousInputValue.length) {
+        } else { // Typed past end of line (inputLength > lineLength)
+             // Check if it's the expected trailing space after a correct line
+             const isExpectedTrailingSpace = inputLength === lineLength + 1 && isLineTextCorrect && previousInputValue.length === lineLength && isCorrect; // isCorrect checks if the last char typed *was* the space
+
+             if (inputLength > previousInputValue.length && !isExpectedTrailingSpace) {
+                // Play incorrect sound only if it's not the valid trailing space or if typed further
                 incorrectSound.play().catch((e) => console.log('Sound play interrupted'));
-                practiceState.totalErrors++; // Access shared state
-                console.log('Error: Typed past end of line.');
+                if (inputLength > lineLength + 1 || !isLineTextCorrect) { // Count error if too long or line wasn't correct before space
+                    practiceState.totalErrors++; // Increment errors for extra/wrong characters
+                }
+                console.log('Error: Typed past end of line or incorrect trailing character.');
+                // Optionally apply visual feedback to the input area itself if needed
+             } else if (isExpectedTrailingSpace) {
+                 // Don't play incorrect sound for the valid space, line completion sound handles it
+                 // Apply correct effect to the *last character span* of the line text? Or maybe not needed.
              }
         }
     }
@@ -143,12 +153,10 @@ function createInputHandler(dependencies) {
      * @param {number} linesInCurrentBlock - The total number of lines displayed in the current block.
      * @returns {boolean} - True if the *entire block* was completed and handled, false otherwise.
      */
-    function checkAndHandleIndividualLineCompletion(isLineCorrect, inputLength, currentLineText, currentLineIndexInBlock, linesInCurrentBlock) {
-        if (
-            isLineCorrect &&
-            inputLength === currentLineText.length &&
-            currentLineText.length > 0
-        ) {
+    // isLineCorrect is now isLineReadyForCompletion (text correct + trailing space)
+    function checkAndHandleIndividualLineCompletion(isLineReadyForCompletion, inputLength, currentLineText, currentLineIndexInBlock, linesInCurrentBlock) {
+        // Condition now checks the flag passed from handleHiddenInput
+        if (isLineReadyForCompletion && currentLineText.length > 0) {
             const absoluteLineIndex = practiceState.currentDisplayLineIndex + currentLineIndexInBlock;
             console.log(`Individual line ${absoluteLineIndex} complete.`);
             lineCompleteSound.play().catch((e) => console.log('Sound play interrupted'));
@@ -272,46 +280,82 @@ function createInputHandler(dependencies) {
         practiceState.totalTypedEntries++; // Increment regardless of line
 
         // Compare currentInput against textForCurrentLine using spansForCurrentLine
-        let lineCorrect = true;
+        let lineTextCorrect = true; // Check if the text part matches
         let lineErrors = 0;
         let lastCharCorrect = false;
-        let correctPrefixLengthOnLine = 0;
+        let correctPrefixLengthOnLine = 0; // Correct prefix *of the text part*
 
+        // Process only the characters corresponding to the actual line text
         spansForCurrentLine.forEach((charSpan, index) => {
-            const expectedChar = charSpan.textContent; // Newlines are not in spansForCurrentLine
-            if (index < inputLength) {
+            const expectedChar = charSpan.textContent;
+            if (index < inputLength && index < lengthOfCurrentLine) { // Only compare up to line length
                 const typedChar = currentInput[index];
                 const isCorrect = typedChar === expectedChar;
 
                 const wasPreviouslyIncorrect = charSpan.classList.contains('incorrect');
                 if (!isCorrect && !wasPreviouslyIncorrect) {
                     lineErrors++;
-                    // TODO: Refine global error counting - maybe increment here?
-                    // practiceState.totalErrors++;
+                    // TODO: Refine global error counting
                 }
 
                 charSpan.classList.toggle('correct', isCorrect);
                 charSpan.classList.toggle('incorrect', !isCorrect);
 
-                if (isCorrect && lineCorrect) {
+                if (isCorrect && lineTextCorrect) {
                     correctPrefixLengthOnLine = index + 1;
                 } else {
-                    lineCorrect = false;
+                    lineTextCorrect = false; // Text part is incorrect if any mismatch
                 }
-                if (index === inputLength - 1) lastCharCorrect = isCorrect;
-            } else {
+            } else if (index >= lengthOfCurrentLine && index < inputLength) {
+                // Input is longer than the line text, but we haven't checked the space yet.
+                // Don't mark spans incorrect here, handle trailing space logic below.
+            }
+             else { // Input is shorter than this character's position in the line
                 charSpan.classList.remove('correct', 'incorrect', 'effect-correct', 'effect-incorrect');
-                lineCorrect = false;
+                lineTextCorrect = false;
             }
         });
 
-        // Line isn't correct if input length doesn't match expected line length
-        if (inputLength !== lengthOfCurrentLine) {
-            lineCorrect = false;
+        // Check if the input matches the line text exactly up to the line's length
+        if (correctPrefixLengthOnLine !== lengthOfCurrentLine) {
+            lineTextCorrect = false;
         }
 
+        // --- New Line Completion Logic ---
+        const isTrailingSpaceTyped = inputLength === lengthOfCurrentLine + 1 && currentInput.endsWith(' ');
+        const isLineReadyForCompletion = lineTextCorrect && isTrailingSpaceTyped;
+
+        // Determine lastCharCorrect based on context (text or trailing space)
+        if (inputLength === 0) {
+            lastCharCorrect = false;
+        } else if (isTrailingSpaceTyped) {
+            lastCharCorrect = lineTextCorrect; // Space is "correct" if line was correct
+        } else if (inputLength > lengthOfCurrentLine) {
+            lastCharCorrect = false; // Typed something else or too many chars after line end
+        } else { // Input is within or exactly at the line length
+             const lastTypedIndex = inputLength - 1;
+             if (lastTypedIndex >= 0 && lastTypedIndex < lengthOfCurrentLine) {
+                 lastCharCorrect = currentInput[lastTypedIndex] === textForCurrentLine[lastTypedIndex];
+             } else {
+                 lastCharCorrect = false; // Should not happen if inputLength <= lengthOfCurrentLine
+             }
+        }
+
+        // Clear formatting for any spans beyond the current input length (up to line length)
+        // This handles backspace correctly.
+        for (let i = inputLength; i < lengthOfCurrentLine; i++) {
+             if (spansForCurrentLine[i]) {
+                 spansForCurrentLine[i].classList.remove('correct', 'incorrect', 'effect-correct', 'effect-incorrect');
+             }
+        }
+
+
+        // Original lineCorrect check is replaced by isLineReadyForCompletion for the completion function
+        // We still need lineTextCorrect for other logic potentially.
+
         // Handle feedback (sound/effect) for the last typed character on this line
-        handleCharacterFeedback(lastCharCorrect, inputLength, previousInputValue, spansForCurrentLine);
+        // Pass lineTextCorrect to determine if the trailing space should trigger incorrect sound
+        handleCharacterFeedback(lastCharCorrect, inputLength, previousInputValue, spansForCurrentLine, lineTextCorrect, lengthOfCurrentLine);
 
         // Update overall progress index based on the correct prefix *on this line*
         practiceState.currentOverallCharIndex = startIndexOfCurrentLine + correctPrefixLengthOnLine;
@@ -320,9 +364,10 @@ function createInputHandler(dependencies) {
         practiceState.totalTypedChars = practiceState.currentOverallCharIndex;
 
         // --- Check for Individual Line Completion ---
+        // Use the new flag to check for completion
         const blockCompleted = checkAndHandleIndividualLineCompletion(
-            lineCorrect,
-            inputLength,
+            isLineReadyForCompletion, // Use the new flag
+            inputLength, // Pass inputLength for potential future use, though condition changed
             textForCurrentLine,
             currentLineIndexInBlock,
             linesInBlock
@@ -331,8 +376,8 @@ function createInputHandler(dependencies) {
         // Update stats display if the block wasn't just completed
         // (checkAndHandleIndividualLineCompletion updates stats if only a line was completed)
         if (!blockCompleted) {
-            // If the line wasn't completed either, update stats normally
-            if (!(lineCorrect && inputLength === lengthOfCurrentLine)) {
+            // If the line wasn't completed (didn't meet the new criteria), update stats
+            if (!isLineReadyForCompletion) {
                  updateStats();
             }
         }
