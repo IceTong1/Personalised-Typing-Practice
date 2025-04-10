@@ -13,9 +13,11 @@ const textController = require('./controllers/textController'); // Handles core 
 const categoryController = require('./controllers/categoryController'); // Handles category (folder) routes
 const practiceController = require('./controllers/practiceController'); // Handles practice session routes
 const profileController = require('./controllers/profileController'); // Handles profile routes
+const { router: storeRouter, storeItems } = require('./controllers/storeController'); // Import router and items
+const db = require('./models/db'); // Import db for owned items check
 
 // --- Middleware Imports ---
-const { loadUserData } = require('./middleware/authMiddleware'); // Import the new middleware
+const { loadUserData, requireLogin } = require('./middleware/authMiddleware'); // Import requireLogin
 
 // --- Express App Initialization ---
 const app = express(); // Create an Express application instance
@@ -66,6 +68,21 @@ app.use('/', textController); // Mount text routes under root (e.g., /texts, /ad
 app.use('/', profileController); // Mount profile routes under root (/profile)
 app.use('/categories', categoryController); // Mount category routes under /categories (e.g., /categories, /categories/:id/rename)
 app.use('/practice', practiceController); // Mount practice routes under /practice (e.g., /practice/:id, /practice/api/progress)
+
+// Store Page Route (GET) - Fetch owned items and render
+app.get('/store', requireLogin, (req, res) => {
+    try {
+        const userId = req.session.user.id;
+        const ownedItems = db.get_owned_item_ids(userId); // Get a Set of owned item IDs
+        // Pass both the available items and the user's owned items
+        res.render('store', { storeItems, ownedItems });
+    } catch (error) {
+        console.error("Error loading store page:", error);
+        // Handle error appropriately, maybe render store with empty owned items or an error message
+        res.status(500).send("Error loading store page.");
+    }
+});
+app.use('/store', storeRouter); // Mount the store router (for POST /store/buy etc.)
 
 // --- Error Handling Middleware (Generic - place after all routes) ---
 // Catch-all for other errors not handled by specific routes

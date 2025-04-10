@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Shelf</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Add any specific CSS for the shelf page if needed -->
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <main class="container">
+        <h1>My Purchased Items</h1>
+
+        <div class="shelf-items mt-4"> <%# Added margin-top %>
+            <% if (items && items.length > 0) { %>
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4"> <%# Bootstrap grid: 1 col on xs, 2 on sm, 3 on md+ %>
+                    <% items.forEach(item => { %>
+                        <div class="col">
+                            <div class="card h-100 shadow-sm"> <%# Card with full height and subtle shadow %>
+                                <div class="card-body d-flex flex-column text-center"> <%# Flex column and center text %>
+                                    <div class="mb-3"> <%# Margin bottom for spacing %>
+                                        <span style="font-size: 3rem;"><%= item.emoji %></span> <%# Larger emoji %>
+                                    </div>
+                                    <h5 class="card-title mb-2"><%= item.name %></h5>
+                                    <% if (item.description) { %>
+                                        <p class="card-text small text-muted flex-grow-1"><%= item.description %></p> <%# Smaller, muted description %>
+                                    <% } else { %>
+                                        <div class="flex-grow-1"></div> <%# Ensure card height consistency even without description %>
+                                    <% } %>
+                                    <%# Optionally add price or other details at the bottom %>
+                                    <%# Example: <p class="card-text mt-auto"><small class="text-muted">Price: item.price</small></p> %>
+                                </div>
+                            </div>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="alert alert-info" role="alert"> <%# Use Bootstrap alert %>
+                    You haven't purchased any items yet. Visit the <a href="/store" class="alert-link">Store</a> to buy some!
+                </div>
+            <% } %>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <!-- Add any specific JS for the shelf page if needed -->
+</body>
+</html>

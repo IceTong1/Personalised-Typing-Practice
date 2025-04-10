@@ -65,6 +65,19 @@ db.exec(`
     );
 `);
 
+// Create the 'user_owned_items' table to track items owned by users
+db.exec(`
+    CREATE TABLE IF NOT EXISTS user_owned_items (
+        user_id INTEGER NOT NULL,             -- Foreign key to users table
+        item_id TEXT NOT NULL,                -- Identifier for the item (e.g., 'car', 'house')
+        quantity INTEGER NOT NULL DEFAULT 1,  -- How many of this item the user owns
+        acquired_at DATETIME DEFAULT CURRENT_TIMESTAMP, -- When the item was first acquired
+        PRIMARY KEY (user_id, item_id),       -- Ensure user owns each item type at most once (or track quantity)
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE -- If user deleted, remove their items
+        -- No foreign key for item_id yet, as items aren't in their own table
+    );
+`);
+
 // --- Schema Migration: Add order_index to texts if it doesn't exist ---
 // This should run after all initial table creations are defined.
 try {
@@ -229,9 +242,10 @@ function decrement_user_coins(user_id, amount = 1) {
         return false;
     }
     // Use MAX(0, coins - ?) to prevent going below zero
-    const stmt = db.prepare('UPDATE users SET coins = MAX(0, coins - ?) WHERE id = ? AND coins > 0'); // Only update if coins > 0
+    // Ensure the user has enough coins *before* attempting the update
+    const stmt = db.prepare('UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?');
     try {
-        const info = stmt.run(amount, user_id);
+        const info = stmt.run(amount, user_id, amount); // Pass amount twice: once for SET, once for WHERE
         if (process.env.NODE_ENV === 'development' && info.changes > 0) {
             console.log(`Decremented coins by ${amount} for user ID ${user_id}.`);
         } else if (process.env.NODE_ENV === 'development' && info.changes === 0) {
@@ -462,6 +476,75 @@ const update_text_order = db.transaction((user_id, order) => {
     return true; // Indicate success
 });
 
+
+/**
+ * Checks if a user already owns a specific item.
+ * @param {number} user_id - The user's ID.
+ * @param {string} item_id - The ID of the item to check.
+ * @returns {boolean} - True if the user owns the item, false otherwise.
+ */
+function check_item_ownership(user_id, item_id) {
+    const stmt = db.prepare('SELECT 1 FROM user_owned_items WHERE user_id = ? AND item_id = ?');
+    const result = stmt.get(user_id, item_id);
+    return !!result; // Returns true if a row is found, false otherwise
+}
+
+/**
+ * Adds an item to a user's owned items list.
+ * Uses INSERT OR IGNORE to prevent errors if the user already owns the item.
+ * Assumes quantity is always 1 for new acquisitions.
+ * @param {number} user_id - The user's ID.
+ * @param {string} item_id - The ID of the item being added.
+ * @returns {boolean} - True if the insert was potentially successful (or ignored), false on error.
+ */
+function add_owned_item(user_id, item_id) {
+    try {
+        // 1. Check if the user already owns the item
+        const alreadyOwns = check_item_ownership(user_id, item_id);
+
+        if (alreadyOwns) {
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`User ID ${user_id} already owns item '${item_id}'. No insert needed.`);
+            }
+            return true; // Indicate success (state is correct: user owns item)
+        }
+
+        // 2. If not owned, insert the item
+        const insertStmt = db.prepare(`
+            INSERT INTO user_owned_items (user_id, item_id, quantity)
+            VALUES (?, ?, ?)
+        `);
+        const info = insertStmt.run(user_id, item_id, 1); // Provide all three values
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Item '${item_id}' inserted for user ID ${user_id}. Changes: ${info.changes}`);
+        }
+
+        return info.changes > 0; // Return true if insert succeeded
+
+    } catch (err) {
+        console.error(`Error in add_owned_item for user ID ${user_id}, item '${item_id}':`, err);
+        return false; // Indicate failure
+    }
+}
+
+/**
+ * Retrieves a list of item IDs owned by a specific user.
+ * @param {number} user_id - The user's ID.
+ * @returns {Set<string>} - A Set containing the item_id strings owned by the user.
+ */
+function get_owned_item_ids(user_id) {
+    const stmt = db.prepare('SELECT item_id FROM user_owned_items WHERE user_id = ?');
+    try {
+        const rows = stmt.all(user_id);
+        // Return a Set for efficient lookups (e.g., ownedItems.has('car'))
+        return new Set(rows.map(row => row.item_id));
+    } catch (err) {
+        console.error(`Error fetching owned items for user ID ${user_id}:`, err);
+        return new Set(); // Return empty set on error
+    }
+}
+
 // --- Exports ---
 // Make the database functions available for other modules (like controllers) to import
 module.exports = {
@@ -478,7 +561,10 @@ module.exports = {
     update_text_order,
     get_user_details,
     increment_user_coins,
-    decrement_user_coins, // Export the new function
+    decrement_user_coins,
+    check_item_ownership,
+    add_owned_item,
+    get_owned_item_ids,   // Export the new function
 
     // --- Category Functions ---
 

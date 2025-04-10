@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Store</title> <!-- Also updated title slightly -->
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Removed link to store.css as styles are now in style.css -->
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <main class="container">
+        <h1>Virtual Item Store</h1>
+        <p>Browse our collection of exclusive virtual items!</p>
+
+        <!-- Placeholder for Bootstrap alerts -->
+        <div id="alert-container" class="mb-3"></div>
+
+        <div class="store-grid">
+            <%
+                // Define logos for items (can be expanded)
+                const itemLogos = {
+                    car: '🚗',
+                    house: '🏠',
+                    laptop: '💻',
+                    phone: '📱',
+                    book: '📖',
+                    game_controller: '🎮',
+                    pizza_slice: '🍕',
+                    coffee_cup: '☕',
+                    sword: '⚔️',
+                    shield: '🛡️',
+                    rubber_chicken: '🐔', // Closest emoji
+                    pet_rock: '🪨',
+                    infinite_coffee: '♾️☕', // Combining emojis
+                    invisibility_cloak_rental: '👻🧥', // Ghost + Coat
+                    portable_black_hole: '⚫🌀', // Black circle + Cyclone
+                    unicorn_horn_polish: '🦄✨', // Unicorn + Sparkles
+                    anti_gravity_boots: '👟🚀', // Sneaker + Rocket
+                    brian: '👨', // Man for Brian
+                    default: '❓' // Default logo if not found
+                };
+
+                // Loop through the storeItems object passed from the server
+                Object.entries(storeItems).forEach(([itemId, item]) => {
+            %>
+                <div class="store-item">
+                    <div class="item-logo"><%= itemLogos[itemId] || itemLogos.default %></div>
+                    <h2><%= item.name %></h2>
+                    <p class="item-price">$<%= item.price.toFixed(2) %></p> <% /* Format price */ %>
+                    <button class="btn buy-button" data-item-id="<%= itemId %>" <%= ownedItems.has(itemId) ? 'disabled' : '' %>>
+                        <%= ownedItems.has(itemId) ? 'Owned' : 'Buy Now' %>
+                    </button>
+                </div>
+            <% }); %>
+        </div>
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <script src="/js/store.js"></script> <!-- Include the store script -->
+
+    <!-- Bootstrap Modal for Errors -->
+    <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="errorModalLabel">Purchase Error</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="errorModalBody">
+            <!-- Error message will be inserted here -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+</body>
+</html>

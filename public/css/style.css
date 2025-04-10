@@ -23,6 +23,8 @@
     --success-hover: #66bb6a;
     --info-hover: #0b9ed7;
     --danger-hover: #b02a37;
+    --accent-color: var(--primary-color); /* Added for store button */
+    --accent-hover-color: var(--primary-hover); /* Added for store button hover */
 
     /* Alert Colors (Potentially used by JS?) - Keep for safety or remove if unused */
     --danger-color-text: #f8d7da;
@@ -42,6 +44,81 @@
     /* Transitions */
     --transition-fast: 0.2s ease;
     --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Added from store.css for consistency */
+    --border-color: var(--secondary-color-border);
+    --secondary-bg-color: var(--surface-dark); /* Renamed from --secondary-color-bg for clarity */
+    --border-color: rgba(255, 255, 255, 0.2); /* Default border */
+    --text-color: var(--text-primary); /* Default text color */
+}
+
+/* Light Theme Overrides */
+[data-bs-theme="light"] {
+    --primary-color: #6f42c1; /* Bootstrap purple */
+    --primary-hover: #5a349a;
+    --background-darker: #f8f9fa; /* Light body background */
+    --surface-dark: #ffffff;    /* White surfaces */
+    --text-primary: #212529;    /* Dark text */
+    --text-secondary: #6c757d;  /* Gray text */
+    --border-color: rgba(0, 0, 0, 0.175); /* Light theme border */
+    --secondary-bg-color: var(--surface-dark); /* Will be white */
+    --secondary-color-border: var(--border-color);
+    --secondary-hover-bg: rgba(0, 0, 0, 0.05);
+    --secondary-hover-border: rgba(0, 0, 0, 0.25);
+    --accent-color: #6f42c1; /* Use primary for accent */
+    --accent-hover-color: #5a349a;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.075);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.1);
+    --text-color: var(--text-primary); /* Dark text */
+
+    /* Update other colors for light mode consistency */
+    --success-color: #198754;
+    --error-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+    --danger-color: #dc3545;
+    --success-hover: #157347;
+    --danger-hover: #bb2d3b;
+    --info-hover: #31d2f2;
+    --warning-hover: #ffca2c;
+
+    /* Specific overrides if needed */
+    #current-line-display {
+        background-color: #e9ecef; /* Lighter background for text display */
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+    #line-stats {
+        background-color: rgba(0, 0, 0, 0.05);
+        color: var(--text-secondary);
+    }
+    .highlight {
+         background-color: rgba(111, 66, 193, 0.15); /* Light purple highlight */
+    }
+    .cursor {
+        background-color: var(--primary-color); /* Use light theme primary */
+    }
+    .buy-button {
+        color: #ffffff; /* Ensure text is white on button */
+    }
+}
+/* Style for disabled/owned store buttons in light mode */
+.buy-button.owned,
+.buy-button:disabled {
+    background-color: #e9ecef; /* Light gray background */
+    color: #6c757d; /* Muted text color (Bootstrap's secondary) */
+    border: 1px solid #ced4da; /* Subtle border */
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+.buy-button.owned:hover,
+.buy-button:disabled:hover {
+    background-color: #e9ecef; /* Keep same background on hover */
+    color: #6c757d; /* Keep same text color on hover */
+    border: 1px solid #ced4da;
+    box-shadow: none;
+    transform: none;
 }
 
 html { height: 100%; } /* Needed for percentage heights on body/flex */
@@ -232,3 +309,83 @@ footer {
     color: var(--text-primary);
 }
 /* --- End Texts Page Styles --- */
+
+/* --- Store Page Specific Styles --- */
+
+.store-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
+    gap: 2rem; /* Spacing between items */
+    margin-top: 2rem;
+}
+
+.store-item {
+    background-color: var(--secondary-bg-color); /* Use theme variable */
+    border: 1px solid var(--border-color); /* Use theme variable */
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pushes button to the bottom */
+}
+
+.store-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.item-logo {
+    font-size: 4rem; /* Make the emoji logo bigger */
+    margin-bottom: 1rem;
+    line-height: 1; /* Adjust line height for better centering */
+}
+
+.store-item h2 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.4rem;
+    color: var(--text-primary); /* Use primary text color */
+}
+
+.item-price {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--accent-color); /* Use theme variable for price */
+    margin-bottom: 1rem;
+}
+
+.buy-button {
+    background-color: var(--accent-color); /* Use theme variable */
+    color: #fff; /* White text on accent color */
+    padding: 0.9rem 1.8rem; /* Slightly larger padding */
+    border: none;
+    border-radius: 6px; /* Slightly larger radius */
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease; /* Added transform and shadow transitions */
+    align-self: center; /* Center button horizontally */
+    width: fit-content; /* Button width fits content */
+    font-weight: bold; /* Make text bolder */
+    font-size: 1.1rem; /* Slightly larger font */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* Add a subtle shadow */
+}
+
+.buy-button:hover {
+    background-color: var(--accent-hover-color); /* Use theme variable */
+    transform: translateY(-1px); /* Slight lift on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Enhance shadow on hover */
+}
+
+.buy-button:active {
+    transform: translateY(0px); /* Press down effect */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Reduce shadow on active */
+}
+
+/* Ensure container padding works well with the grid */
+/* Note: This overrides the default .container padding. Consider if this is desired globally or should be more specific */
+/* .container {
+    padding: 2rem;
+} */
+/* Commented out the general .container padding override from store.css as it might affect other pages.
+   If specific padding is needed only for the store page, apply it to a more specific container or add a class. */
