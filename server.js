@@ -15,7 +15,7 @@ const practiceController = require('./controllers/practiceController'); // Handl
 const profileController = require('./controllers/profileController'); // Handles profile routes
 
 // --- Middleware Imports ---
-// Middleware functions (requireLogin, requireOwnership) are imported directly by controllers
+const { loadUserData } = require('./middleware/authMiddleware'); // Import the new middleware
 
 // --- Express App Initialization ---
 const app = express(); // Create an Express application instance
@@ -43,11 +43,8 @@ app.use(
     })
 );
 
-// Middleware to make session user available in all views
-app.use((req, res, next) => {
-    res.locals.user = req.session.user; // Make user available in templates
-    next();
-});
+// Middleware to load full user data (including coins) if logged in
+app.use(loadUserData); // Makes res.locals.currentUser available in templates
 
 // --- View Engine Setup ---
 app.set('view engine', 'ejs');
@@ -77,28 +74,33 @@ app.use((err, req, res, next) => {
     const statusCode = err.status || 500;
     res.status(statusCode);
 
-    // Attempt to render a dedicated error page
-    try {
-        // Check if the 'error.ejs' view exists before trying to render
-        const errorViewPath = path.join(__dirname, 'views', 'error.ejs');
-        if (fs.existsSync(errorViewPath)) {
-            res.render('error', {
-                message: err.message || 'An unexpected error occurred.',
-                // Provide stack trace only in development for security
-                error: process.env.NODE_ENV === 'development' ? err : {},
-                status: statusCode, // Pass status code to the view if needed
-            });
-        } else {
-            // Fallback if error.ejs doesn't exist
-            console.warn(
-                "Warning: 'views/error.ejs' not found. Sending plain text error."
-            );
+    // Check if the client accepts JSON
+    if (req.accepts('json')) {
+        // Send JSON error for API requests
+        res.json({
+            success: false, // Indicate failure
+            message: err.message || `Server Error (${statusCode})`,
+            // Optionally include stack trace in development
+            error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+        });
+    } else {
+        // Attempt to render a dedicated HTML error page for browser requests
+        try {
+            const errorViewPath = path.join(__dirname, 'views', 'error.ejs');
+            if (fs.existsSync(errorViewPath)) {
+                res.render('error', {
+                    message: err.message || 'An unexpected error occurred.',
+                    error: process.env.NODE_ENV === 'development' ? err : {},
+                    status: statusCode,
+                });
+            } else {
+                console.warn("Warning: 'views/error.ejs' not found. Sending plain text error.");
+                res.type('text/plain').send(`Server Error (${statusCode})`);
+            }
+        } catch (renderError) {
+            console.error('Error rendering error page:', renderError);
             res.type('text/plain').send(`Server Error (${statusCode})`);
         }
-    } catch (renderError) {
-        // Fallback if rendering the error page itself fails
-        console.error('Error rendering error page:', renderError);
-        res.type('text/plain').send(`Server Error (${statusCode})`);
     }
 });
 

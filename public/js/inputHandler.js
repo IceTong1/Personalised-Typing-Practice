@@ -161,6 +161,42 @@ function createInputHandler(dependencies) {
             console.log(`Individual line ${absoluteLineIndex} complete.`);
             lineCompleteSound.play().catch((e) => console.log('Sound play interrupted'));
 
+            // --- Award Coin ---
+            fetch('/practice/line-complete', { // Updated path
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Add CSRF token header if necessary
+                },
+                // No body needed as user ID is from session
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.newCoinCount !== null) {
+                    console.log(`Coin awarded! New count: ${data.newCoinCount}`);
+                    // Update the coin count in the header
+                    const coinCountElement = document.getElementById('coin-count');
+                    if (coinCountElement) {
+                        coinCountElement.textContent = data.newCoinCount;
+                    } else {
+                        console.warn('Could not find coin count element in header to update.');
+                    }
+                } else if (!data.success) {
+                     console.error('API call to award coin failed:', data.message);
+                } else {
+                    // Success was true, but newCoinCount was null (server-side fetch issue)
+                    console.warn('Coin likely awarded, but failed to retrieve updated count from server.');
+                }
+            })
+            .catch(error => {
+                console.error('Error calling coin award API:', error);
+            });
+
             // --- Clear Input ---
             if (practiceState.hiddenInput) {
                 practiceState.hiddenInput.value = '';
@@ -295,7 +331,8 @@ function createInputHandler(dependencies) {
                 const wasPreviouslyIncorrect = charSpan.classList.contains('incorrect');
                 if (!isCorrect && !wasPreviouslyIncorrect) {
                     lineErrors++;
-                    // TODO: Refine global error counting
+                    practiceState.totalErrors++; // Increment global errors
+                    practiceState.errorsSinceLastPenalty++; // Increment penalty counter
                 }
 
                 charSpan.classList.toggle('correct', isCorrect);
@@ -347,6 +384,60 @@ function createInputHandler(dependencies) {
              if (spansForCurrentLine[i]) {
                  spansForCurrentLine[i].classList.remove('correct', 'incorrect', 'effect-correct', 'effect-incorrect');
              }
+        }
+
+        // --- Check for Error Penalty ---
+        if (practiceState.errorsSinceLastPenalty >= 10) {
+            const coinCountElement = document.getElementById('coin-count');
+            const currentCoins = coinCountElement ? parseInt(coinCountElement.textContent, 10) : 0;
+
+            if (currentCoins <= 0) {
+                // Coins are already 0 or less, skip penalty API call
+                console.info(`Reached ${practiceState.errorsSinceLastPenalty} errors, but penalty skipped (coins already 0).`);
+                practiceState.errorsSinceLastPenalty = 0; // Reset counter
+            } else {
+                // Proceed with penalty API call
+                console.log(`Reached ${practiceState.errorsSinceLastPenalty} errors, applying penalty...`);
+                const errorsBeforePenalty = practiceState.errorsSinceLastPenalty; // Store current count before resetting
+                practiceState.errorsSinceLastPenalty = 0; // Reset counter immediately
+
+                fetch('/practice/penalty', { // Corrected path
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            })
+            .then(async response => { // Make async to potentially read body on error
+                const status = response.status;
+                const data = await response.json().catch(() => null); // Try to parse JSON, default to null if fails
+
+                if (status === 200 && data && data.success && data.newCoinCount !== null) {
+                    // --- Success Case ---
+                    console.log(`Penalty applied! New coin count: ${data.newCoinCount}`);
+                    const coinCountElement = document.getElementById('coin-count');
+                    if (coinCountElement) {
+                        coinCountElement.textContent = data.newCoinCount;
+                    }
+                } else if (status === 400 && data && !data.success && data.currentCoinCount !== undefined) {
+                    // --- Expected "Already Zero" Case ---
+                    console.info(`Penalty skipped (coins already 0). Current count: ${data.currentCoinCount}`); // Use console.info
+                     const coinCountElement = document.getElementById('coin-count');
+                    if (coinCountElement) {
+                        // Update display just in case it was out of sync
+                        coinCountElement.textContent = data.currentCoinCount;
+                    }
+                } else {
+                    // --- Unexpected Error Case ---
+                    console.error(`API call for penalty failed. Status: ${status}`, data || 'No response body');
+                    // Revert the penalty counter for this attempt
+                    practiceState.errorsSinceLastPenalty = errorsBeforePenalty;
+                }
+            })
+            .catch(error => {
+                 // --- Network or Fetch Error Case ---
+                console.error('Network error calling penalty API:', error);
+                // Revert the penalty counter if the fetch itself failed
+                practiceState.errorsSinceLastPenalty = errorsBeforePenalty;
+            });
+            } // End of else block (proceed with penalty)
         }
 
 

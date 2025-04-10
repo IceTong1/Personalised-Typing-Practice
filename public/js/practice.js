@@ -86,7 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
         totalErrors: 0,
         totalTypedChars: 0,
         totalTypedEntries: 0,
-        linesToShow: 1, // Added state for number of lines to display
+        linesToShow: 1,
+        errorsSinceLastPenalty: 0, // Track errors for coin penalty
     };
 
     // --- Initialize Managers ---

@@ -39,7 +39,8 @@ jest.mock('../models/db', () => ({
     delete_category: jest.fn(), // Added for category routes - Should return boolean
     is_category_empty: jest.fn(), // Added for category delete check
     rename_category: jest.fn(), // Added for category rename
-    update_text_order: jest.fn(), // Added for potential future tests
+    update_text_order: jest.fn(),
+    get_user_details: jest.fn(), // Added for loadUserData middleware
 }));
 
 describe('Integration Tests', () => {
@@ -60,6 +61,15 @@ describe('Integration Tests', () => {
         db.delete_category.mockClear();
         db.is_category_empty.mockClear();
         db.rename_category.mockClear();
+        db.get_user_details.mockClear();
+        // Default mock implementation for get_user_details in beforeEach
+        db.get_user_details.mockImplementation((userId) => {
+            if (userId) {
+                // Return a generic user object based on the ID for testing purposes
+                return { id: userId, username: `user${userId}`, coins: 0 };
+            }
+            return null;
+        });
     });
 
     // --- Basic Page Loading ---
@@ -220,6 +230,13 @@ describe('Integration Tests', () => {
                 .post('/login')
                 .send({ username: 'textUser', password: 'password' });
             db.login.mockClear(); // Clear login mock after use
+            // Mock get_user_details for the logged-in user (ID 999) used in this block
+            db.get_user_details.mockImplementation((userId) => {
+                if (userId === 999) {
+                    return { id: 999, username: 'textUser', coins: 0 }; // Default mock response
+                }
+                return null;
+            });
         });
 
         afterAll(() => {

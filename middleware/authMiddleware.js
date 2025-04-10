@@ -1,5 +1,5 @@
 // --- Dependencies ---
-const db = require('../models/db'); // Import database functions to check text ownership
+const db = require('../models/db'); // Import database functions
 
 // --- Middleware Functions ---
 
@@ -121,8 +121,43 @@ function redirectIfLoggedIn(req, res, next) {
     next();
 }
 
+/**
+ * Middleware: loadUserData
+ * Description: If a user is logged in (req.session.user exists), fetches their full details
+ *              (including coins) from the database and attaches them to res.locals.currentUser.
+ *              This makes the user data available in all EJS templates for logged-in users.
+ */
+function loadUserData(req, res, next) {
+    if (req.session && req.session.user && req.session.user.id) {
+        try {
+            const userDetails = db.get_user_details(req.session.user.id);
+            if (userDetails) {
+                res.locals.currentUser = userDetails; // Attach full user details
+                if (process.env.NODE_ENV === 'development') {
+                    // console.log(`Loaded user data for ${userDetails.username}:`, userDetails); // Optional detailed log
+                }
+            } else {
+                // User ID in session but not found in DB (edge case, maybe deleted?)
+                console.warn(`User ID ${req.session.user.id} found in session but not in DB.`);
+                // Clear the invalid session user data
+                delete req.session.user;
+                res.locals.currentUser = null;
+            }
+        } catch (error) {
+            console.error(`Error fetching user details for user ID ${req.session.user.id}:`, error);
+            res.locals.currentUser = null; // Ensure it's null on error
+        }
+    } else {
+        // No user logged in, ensure currentUser is null
+        res.locals.currentUser = null;
+    }
+    next(); // Always call next()
+}
+
+
 module.exports = {
     requireLogin,
     requireOwnership,
-    redirectIfLoggedIn, // Export the new middleware
+    redirectIfLoggedIn,
+    loadUserData, // Export the new middleware
 };

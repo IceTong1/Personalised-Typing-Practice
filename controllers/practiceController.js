@@ -112,6 +112,8 @@ router.post('/api/progress', requireLogin, (req, res) => {
                 success: false,
                 message: 'Database error saving progress.',
             });
+            
+            // This block was incorrectly placed here by the previous diff. Removing it.
         }
     } catch (error) {
         console.error(
@@ -124,6 +126,93 @@ router.post('/api/progress', requireLogin, (req, res) => {
         });
     }
 });
+
+/**
+ * API Route: POST /practice/line-complete
+ * Description: Increments the user's coin count when a line is successfully completed.
+ * Middleware: requireLogin
+ * Request Body: (None needed, user ID comes from session)
+ * Response:
+ *  - 200 OK: { success: true, newCoinCount: number }
+ *  - 500 Internal Server Error: { success: false, message: string }
+ */
+router.post('/line-complete', requireLogin, (req, res) => { // Changed path
+    console.log('--- Reached /practice/api/line-complete endpoint ---'); // Add entry log
+    const userId = req.session.user.id;
+
+    try {
+        const success = db.increment_user_coins(userId, 1); // Increment by 1 coin
+
+        if (success) {
+            // Fetch the updated coin count to send back
+            const userDetails = db.get_user_details(userId);
+            const newCoinCount = userDetails ? userDetails.coins : null; // Handle case where user details might fail to fetch immediately
+
+            if (newCoinCount !== null) {
+                 if (process.env.NODE_ENV === 'development') {
+                    console.log(`API (/line-complete): Awarded 1 coin to user ${userId}. New total: ${newCoinCount}`); // Updated log message
+                 }
+                res.status(200).json({ success: true, newCoinCount: newCoinCount });
+            } else {
+                 console.error(`API (/line-complete): Failed to fetch updated coin count for user ${userId} after increment.`); // Updated log message
+                 // Still return success=true as the increment likely worked, but indicate count fetch issue
+                 res.status(200).json({ success: true, newCoinCount: null });
+            }
+        } else {
+            console.error(`API (/line-complete): Failed to increment coins in DB for user ${userId}.`); // Updated log message
+            res.status(500).json({ success: false, message: 'Failed to update coin count.' });
+        }
+    } catch (error) {
+        console.error(`API Error in /line-complete for user ${userId}:`, error); // Updated log message
+        res.status(500).json({ success: false, message: 'An unexpected error occurred.' });
+    }
+});
+
+/**
+ * API Route: POST /practice/penalty
+ * Description: Decrements the user's coin count due to accumulated errors.
+ * Middleware: requireLogin
+ * Request Body: (None needed, user ID comes from session)
+ * Response:
+ *  - 200 OK: { success: true, newCoinCount: number | null } (null if count couldn't be fetched after decrement)
+ *  - 400 Bad Request: { success: false, message: string } (e.g., if coins already 0)
+ *  - 500 Internal Server Error: { success: false, message: string }
+ */
+router.post('/penalty', requireLogin, (req, res) => { // Corrected path
+    const userId = req.session.user.id;
+    const penaltyAmount = 1; // Decrement by 1 coin per 10 errors
+
+    console.log(`--- Reached /practice/penalty endpoint for user ${userId} ---`); // Updated log message
+
+    try {
+        const success = db.decrement_user_coins(userId, penaltyAmount);
+
+        if (success) {
+            // Fetch the updated coin count to send back
+            const userDetails = db.get_user_details(userId);
+            const newCoinCount = userDetails ? userDetails.coins : null;
+
+            if (process.env.NODE_ENV === 'development') {
+                console.log(`API (/penalty): Applied penalty of ${penaltyAmount} coin(s) to user ${userId}. New total: ${newCoinCount ?? 'N/A'}`); // Updated log message
+            }
+            res.status(200).json({ success: true, newCoinCount: newCoinCount });
+
+        } else {
+            // Decrement failed - likely because coins were already 0
+             if (process.env.NODE_ENV === 'development') {
+                console.log(`API (/penalty): Failed to apply penalty to user ${userId} (likely coins already 0).`); // Updated log message
+            }
+            // Decrement failed, assume coins are 0.
+            const currentCoinCount = 0;
+            // Send 400 Bad Request
+            res.status(400).json({ success: false, message: 'Cannot apply penalty, coins already zero.', currentCoinCount: currentCoinCount });
+        }
+    } catch (error) {
+        console.error(`API Error in /penalty for user ${userId}:`, error); // Updated log message
+        res.status(500).json({ success: false, message: 'An unexpected error occurred while applying penalty.' });
+    }
+});
+
 
 // --- Export Router ---
 module.exports = router;

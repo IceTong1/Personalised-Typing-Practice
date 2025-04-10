@@ -20,7 +20,8 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT, -- Unique user ID, automatically increments
         username TEXT UNIQUE NOT NULL,        -- Username, must be unique and cannot be null
-        password TEXT NOT NULL                -- Password (plain text - INSECURE, use hashing in production)
+        password TEXT NOT NULL,               -- Hashed password
+        coins INTEGER NOT NULL DEFAULT 0      -- Number of coins the user has
     );
 `);
 
@@ -85,6 +86,21 @@ try {
     // Log error if PRAGMA or ALTER fails, but don't necessarily stop the app
     console.error("Error checking/adding 'order_index' column:", err);
 }
+
+// --- Schema Migration: Add coins to users if it doesn't exist ---
+try {
+    const userColumns = db.pragma('table_info(users)');
+    const hasCoins = userColumns.some((col) => col.name === 'coins');
+
+    if (!hasCoins) {
+        db.exec(`ALTER TABLE users ADD COLUMN coins INTEGER NOT NULL DEFAULT 0;`);
+        if (process.env.NODE_ENV === 'development')
+            console.log("Successfully added 'coins' column to 'users' table.");
+    }
+} catch (err) {
+    console.error("Error checking/adding 'coins' column:", err);
+}
+
 
 if (process.env.NODE_ENV === 'development')
     console.log('Database tables checked/created successfully.');
@@ -169,6 +185,66 @@ function login(username, password) {
     console.log(`Login attempt failed: Incorrect password for ${username}`);
     return -1; // Passwords don't match
 }
+
+/**
+ * Retrieves detailed information for a specific user.
+ * @param {number} user_id - The user's ID.
+ * @returns {object|null} - User object { id, username, coins } or null if not found.
+ */
+function get_user_details(user_id) {
+    const stmt = db.prepare('SELECT id, username, coins FROM users WHERE id = ?');
+    return stmt.get(user_id) || null;
+}
+
+/**
+ * Increments the coin count for a specific user.
+ * @param {number} user_id - The ID of the user whose coins to increment.
+ * @param {number} amount - The amount to increment by (usually 1).
+ * @returns {boolean} - True if the update was successful (at least one row changed), false otherwise.
+ */
+function increment_user_coins(user_id, amount = 1) {
+    const stmt = db.prepare('UPDATE users SET coins = coins + ? WHERE id = ?');
+    try {
+        const info = stmt.run(amount, user_id);
+        if (process.env.NODE_ENV === 'development' && info.changes > 0) {
+            console.log(`Incremented coins by ${amount} for user ID ${user_id}.`);
+        }
+        return info.changes > 0;
+    } catch (err) {
+        console.error(`Error incrementing coins for user ID ${user_id}:`, err);
+        return false;
+    }
+}
+
+/**
+ * Decrements the coin count for a specific user, ensuring it doesn't go below zero.
+ * @param {number} user_id - The ID of the user whose coins to decrement.
+ * @param {number} amount - The positive amount to decrement by (usually 1).
+ * @returns {boolean} - True if the update was successful (at least one row changed), false otherwise (e.g., user not found, already 0 coins).
+ */
+function decrement_user_coins(user_id, amount = 1) {
+    // Ensure amount is positive
+    if (amount <= 0) {
+        console.warn(`Attempted to decrement coins by non-positive amount (${amount}) for user ${user_id}.`);
+        return false;
+    }
+    // Use MAX(0, coins - ?) to prevent going below zero
+    const stmt = db.prepare('UPDATE users SET coins = MAX(0, coins - ?) WHERE id = ? AND coins > 0'); // Only update if coins > 0
+    try {
+        const info = stmt.run(amount, user_id);
+        if (process.env.NODE_ENV === 'development' && info.changes > 0) {
+            console.log(`Decremented coins by ${amount} for user ID ${user_id}.`);
+        } else if (process.env.NODE_ENV === 'development' && info.changes === 0) {
+             console.log(`Attempted to decrement coins for user ID ${user_id}, but coins were already 0 or user not found.`);
+        }
+        return info.changes > 0;
+    } catch (err) {
+        console.error(`Error decrementing coins for user ID ${user_id}:`, err);
+        return false;
+    }
+}
+
+// Removed duplicate function definition
 
 /**
  * Retrieves all texts (ID and title only) belonging to a specific user.
@@ -399,7 +475,10 @@ module.exports = {
     update_text,
     delete_text,
     save_progress,
-    update_text_order, // Export the new function
+    update_text_order,
+    get_user_details,
+    increment_user_coins,
+    decrement_user_coins, // Export the new function
 
     // --- Category Functions ---
 

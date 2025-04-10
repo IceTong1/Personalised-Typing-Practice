@@ -44,7 +44,7 @@
               <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto align-items-center">
+                <ul class="navbar-nav me-auto align-items-center"> <!-- Changed ms-auto to me-auto -->
                     <!-- Theme Toggle Button -->
                     <li class="nav-item me-2">
                         <button id="theme-toggle-btn" class="btn btn-sm btn-outline-secondary" type="button" title="Toggle theme">
@@ -54,7 +54,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="/">Home</a>
                     </li>
-                    <% if (typeof user !== 'undefined' && user) { %>
+                    <% if (typeof currentUser !== 'undefined' && currentUser) { %>
                         <li class="nav-item">
                             <a class="nav-link" href="/profile">Profile</a>
                         </li>
@@ -65,9 +65,7 @@
                             <a class="nav-link" href="/add_text<% if (typeof currentCategoryId !== 'undefined' && currentCategoryId) { %>?folderId=<%= currentCategoryId %><% } %>">Add Text</a>
                         </li>
                         <!-- Removed "My Files" link -->
-                        <li class="nav-item">
-                            <a class="nav-link" href="/logout">Logout (<%= user.username %>)</a>
-                        </li>
+                        <!-- Coin Counter and Logout moved to the separate right-aligned div -->
                     <% } else { %>
                         <li class="nav-item">
                             <a class="nav-link" href="/login">Login</a>
@@ -77,6 +75,28 @@
                         </li>
                     <% } %>
                 </ul>
+
+                <!-- Separate container for items pushed to the far right -->
+                <div class="navbar-nav ms-auto align-items-center">
+                    <% if (typeof currentUser !== 'undefined' && currentUser) { %>
+                        <!-- Coin Counter -->
+                        <div class="nav-item me-2"> <!-- Use div instead of li if not part of a ul -->
+                            <span class="nav-link">
+                                <i class="fas fa-coins"></i> <span id="coin-count"><%= currentUser.coins %></span>
+                            </span>
+                        </div>
+                        <div class="nav-item"> <!-- Use div instead of li if not part of a ul -->
+                            <a class="nav-link" href="/logout">Logout (<%= currentUser.username %>)</a>
+                        </div>
+                    <% } else { %>
+                         <li class="nav-item"> <!-- Keep as li if they remain in a ul -->
+                            <a class="nav-link" href="/login">Login</a>
+                        </li>
+                        <li class="nav-item"> <!-- Keep as li if they remain in a ul -->
+                            <a class="nav-link" href="/register">Register</a>
+                        </li>
+                    <% } %>
+                </div>
             </div>
         </div>
     </nav>

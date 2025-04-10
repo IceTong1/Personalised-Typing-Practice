@@ -29,7 +29,7 @@ export default async function saveProgressToServer(
     if (saveButton) saveButton.disabled = true; // Disable button during save
 
     try {
-        const response = await fetch('/api/progress', {
+        const response = await fetch('/practice/api/progress', { // Corrected path
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -58,9 +58,16 @@ export default async function saveProgressToServer(
                 }, 1500); // Show 'Saved!' for 1.5 seconds
             }
         } else {
-            const errorData = await response
-                .json()
-                .catch(() => ({ message: 'Failed to parse error response' })); // Catch potential JSON parsing errors
+            // Clone the response to allow reading the body multiple times
+            const responseClone = response.clone();
+            const errorData = await responseClone.json()
+                .catch(async (parseError) => {
+                    // If JSON parsing fails, try to get the raw text response
+                    const rawText = await response.text().catch(() => 'Could not read response text.');
+                    console.error('Failed to parse JSON error response. Status:', response.status, 'Raw response:', rawText);
+                    // Return the standard fallback message for the alert
+                    return { message: 'Failed to parse error response' };
+                });
             console.error(
                 'Failed to save progress:',
                 response.status,
