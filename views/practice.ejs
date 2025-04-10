@@ -48,14 +48,13 @@
 </div>
 
 <!-- Restructure results using Bootstrap grid with border and padding -->
-<div id="results" class="row text-center my-4 p-3 border rounded bg-body-tertiary">
-    <div id="results" class="row text-center my-4 p-3 border rounded bg-body-tertiary">
-        <div class="col-md col-6 mb-2 mb-md-0">WPM<br><strong id="wpm" class="fs-4">0</strong></div>
-        <div class="col-md col-6 mb-2 mb-md-0">Accuracy<br><strong id="accuracy" class="fs-4">100</strong>%</div>
-        <div class="col-md col-6 mb-2 mb-md-0">Errors<br><strong id="errors" class="fs-4">0</strong></div>
-        <div class="col-md col-6 mb-2 mb-md-0">Time<br><strong id="timer" class="fs-4">0</strong>s</div>
-        <div class="col-md col-12">Completion<br><strong id="completion" class="fs-4">0</strong>%</div> <!-- Full width on small screens -->
-    </div>
+<div id="results" class="row text-center my-4 p-3 border rounded bg-body-tertiary d-none"> <!-- Added d-none to hide -->
+    <div class="col-md col-6 mb-2 mb-md-0">WPM<br><strong id="wpm" class="fs-4">0</strong></div>
+    <div class="col-md col-6 mb-2 mb-md-0">Accuracy<br><strong id="accuracy" class="fs-4">100</strong>%</div>
+    <div class="col-md col-6 mb-2 mb-md-0">Errors<br><strong id="errors" class="fs-4">0</strong></div>
+    <div class="col-md col-6 mb-2 mb-md-0">Time<br><strong id="timer" class="fs-4">0</strong>s</div>
+    <div class="col-md col-12">Completion<br><strong id="completion" class="fs-4">0</strong>%</div> <!-- Full width on small screens -->
+</div>
 
     <!-- Control buttons with more spacing -->
     <div class="mt-4 d-flex justify-content-center gap-3">
