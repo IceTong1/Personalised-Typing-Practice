@@ -1,0 +1,94 @@
+/* Profile Page Specific Styles */
+
+.profile-container {
+    max-width: 800px; /* Limit width for better readability */
+    margin: 2rem auto; /* Center the container and add vertical margin */
+    padding: 2rem;
+    background-color: #f8f9fa; /* Light background for the container */
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
+}
+
+.profile-header h2 {
+    color: #343a40; /* Darker heading color */
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.profile-welcome {
+    text-align: center;
+    color: #6c757d; /* Secondary text color */
+    margin-bottom: 2rem;
+}
+
+#user-stats.card {
+    border: none; /* Remove default card border */
+    background-color: #ffffff; /* White background for the card */
+    border-radius: 8px; /* Match container border-radius */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Lighter shadow for the card */
+    transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
+}
+
+#user-stats .card-title {
+    color: #007bff; /* Primary color for the card title */
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+#user-stats .card-text {
+    font-size: 1.1rem; /* Slightly larger text for stats */
+    color: #495057; /* Slightly darker text color */
+    margin-bottom: 1rem; /* Add spacing between stats */
+    border-bottom: 1px solid #e9ecef; /* Separator line */
+    padding-bottom: 1rem;
+    transition: color 0.3s ease, border-color 0.3s ease; /* Smooth transition */
+}
+
+#user-stats .card-text:last-child {
+    border-bottom: none; /* Remove border from the last item */
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Style for the 'No statistics' message */
+#user-stats .card-text.no-stats {
+    font-style: italic;
+    color: #6c757d;
+    text-align: center;
+    border-bottom: none;
+}
+
+/* Dark Mode Styles */
+[data-bs-theme="dark"] .profile-container {
+    background-color: #212529; /* Dark background for container */
+    color: #dee2e6; /* Lighter text for dark mode */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); /* Darker shadow */
+}
+
+[data-bs-theme="dark"] .profile-header h2 {
+    color: #f8f9fa; /* White heading color */
+}
+
+[data-bs-theme="dark"] .profile-welcome {
+    color: #adb5bd; /* Lighter secondary text color */
+}
+
+[data-bs-theme="dark"] #user-stats.card {
+    background-color: #343a40; /* Darker background for the card */
+    color: #ced4da; /* Lighter text for card content */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Adjusted shadow for dark */
+}
+
+[data-bs-theme="dark"] #user-stats .card-title {
+    color: #0d6efd; /* Bootstrap dark mode primary color */
+}
+
+[data-bs-theme="dark"] #user-stats .card-text {
+    color: #ced4da; /* Lighter text for stats */
+    border-bottom-color: #495057; /* Darker separator line */
+}
+
+[data-bs-theme="dark"] #user-stats .card-text.no-stats {
+    color: #adb5bd; /* Lighter italic text */
+}

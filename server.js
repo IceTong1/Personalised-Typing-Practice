@@ -14,6 +14,7 @@ const categoryController = require('./controllers/categoryController'); // Handl
 const practiceController = require('./controllers/practiceController'); // Handles practice session routes
 const profileController = require('./controllers/profileController'); // Handles profile routes
 const { router: storeRouter, storeItems } = require('./controllers/storeController'); // Import router and items
+const mainController = require('./controllers/mainController'); // Handles general pages like manual
 const db = require('./models/db'); // Import db for owned items check
 
 // --- Middleware Imports ---
@@ -68,6 +69,9 @@ app.use('/', textController); // Mount text routes under root (e.g., /texts, /ad
 app.use('/', profileController); // Mount profile routes under root (/profile)
 app.use('/categories', categoryController); // Mount category routes under /categories (e.g., /categories, /categories/:id/rename)
 app.use('/practice', practiceController); // Mount practice routes under /practice (e.g., /practice/:id, /practice/api/progress)
+
+// Manual Page Route
+app.get('/manual', mainController.getManual); // Use the handler from mainController
 
 // Store Page Route (GET) - Fetch owned items and render
 app.get('/store', requireLogin, (req, res) => {

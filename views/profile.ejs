@@ -1,8 +1,10 @@
 <%- include('partials/header') %>
 
-<div class="container mt-4">
-    <h2>Profile</h2>
-    <p>Welcome, <%= user ? user.username : 'Guest' %>!</p>
+<div class="profile-container"> <!-- Use custom container class -->
+    <div class="profile-header"> <!-- Add header class -->
+        <h2>Profile</h2>
+    </div>
+    <p class="profile-welcome">Welcome, <%= user ? user.username : 'Guest' %>!</p> <!-- Add welcome class -->
 
     <!-- User stats will be displayed here -->
     <!-- Wrap stats in a Bootstrap card -->
@@ -10,11 +12,11 @@
         <div class="card-body">
             <h3 class="card-title">Your Statistics</h3>
             <% if (stats) { %>
-                <p class="card-text">Texts Practiced: <%= stats.textsPracticed %></p>
+                <p class="card-text">Texts Completed: <%= stats.textsPracticed %></p>
                 <p class="card-text">Total Practice Time: <%= stats.totalPracticeTime %></p> <%# Example stat %>
                 <p class="card-text">Average Accuracy: <%= stats.averageAccuracy %>%</p> <%# Example stat %>
             <% } else { %>
-                <p class="card-text">No statistics available yet. Start practicing!</p>
+                <p class="card-text no-stats">No statistics available yet. Start practicing!</p> <!-- Add no-stats class -->
             <% } %>
         </div>
     </div>

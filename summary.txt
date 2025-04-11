@@ -1,77 +1,124 @@
-# Project Architecture Summary
+Préparation Détaillée pour la Soutenance - Projet Web V3 (Typing Trainer)
 
-## Core Components
+I. Vue d'Ensemble du Projet & Démonstration (10 min)
+   - **Objectif Principal:** Application web d'entraînement à la dactylographie personnalisable.
+   - **Technologies Clés:**
+     - Backend: Node.js, Express.js
+     - Frontend (Templating): EJS
+     - Base de Données: SQLite (via `better-sqlite3`)
+     - Authentification: Sessions (`express-session`, `connect-sqlite3`), Mots de passe hashés (`bcrypt`)
+     - Gestion Fichiers: Upload PDF (`multer`), Extraction texte PDF (via `pdftotext` externe)
+     - IA: Résumé de texte (Google Gemini - `@google/generative-ai`, si API Key configurée)
+     - Tests: Jest, Supertest
+     - Qualité Code: ESLint, Prettier
+   - **Fonctionnalités Principales à Démontrer:**
+     1.  Inscription / Connexion utilisateur.
+     2.  Ajout de texte (via textarea ET upload PDF). Montrer le nettoyage/formatage.
+     3.  Organisation des textes par catégories (création, renommage, suppression de catégorie, déplacement de texte).
+     4.  Session d'entraînement sur un texte (interface de frappe).
+     5.  Sauvegarde de la progression pendant l'entraînement.
+     6.  Système de récompense (pièces gagnées par ligne) et pénalité (pièces perdues pour erreurs). Afficher le solde.
+     7.  Page de profil affichant les statistiques (textes pratiqués, temps total, précision moyenne).
+     8.  (Si implémenté et configuré) Fonctionnalité de résumé de texte via IA.
+     9.  (Si implémenté) Boutique pour dépenser les pièces.
+   - **Points Techniques à Souligner pendant la Démo:**
+     - Structure MVC (expliquer brièvement `server.js`, `controllers`, `models`, `views`).
+     - Interaction client-serveur (ex: sauvegarde de progression via API POST `/practice/api/progress`).
+     - Utilisation de la base de données SQLite.
 
-1. **Controllers** (route handlers):
-   - authController.js: Handles authentication (login/register/logout)
-   - textController.js: Manages text CRUD operations
-   - profileController.js: Handles user profile pages
-   - practiceController.js: Manages typing practice sessions
-   - categoryController.js: Handles folder/category operations
+II. Questions sur le Code Source (Critères: Compréhension, Style & Organisation)
 
-2. **Services** (business logic):
-   - textService.js: Contains text processing and database operations
+   - **`server.js`:**
+     - Rôle: Point d'entrée, configuration Express, middleware (static, body-parser, session), montage des routeurs.
+     - Middleware Clés: `loadUserData` (rend `res.locals.currentUser` dispo), `requireLogin`, `requireOwnership`.
+     - Gestion des Erreurs: Middleware final pour erreurs 500 / 404 (rend `error.ejs` ou JSON).
+   - **`models/db.js`:**
+     - Rôle: Interaction avec la base de données SQLite (`better-sqlite3`).
+     - Schéma BD (Tables Principales):
+       - `users`: id, username, password (hashé), coins.
+       - `texts`: id, user_id, category_id, title, content, order_index.
+       - `categories`: id, user_id, name, parent_category_id (permet la hiérarchie).
+       - `user_text_progress`: user_id, text_id, progress_index (PK: user_id, text_id).
+       - `user_owned_items`: user_id, item_id, quantity (pour la boutique).
+       - `user_stats`: user_id, texts_practiced, total_practice_time_seconds, total_accuracy_points, accuracy_entries_count.
+     - Fonctions Notables: `login` (avec `bcrypt.compareSync`), `add_text`, `get_texts` (avec `LEFT JOIN` pour la progression), `save_progress` (UPSERT), `update_user_stats` (UPSERT incrémental), `increment/decrement_user_coins`, `get_all_categories_flat` (CTE récursive).
+     - Contraintes: `FOREIGN KEY` (ex: `ON DELETE CASCADE`, `ON DELETE SET NULL`), `UNIQUE`.
+   - **`controllers/`:**
+     - `authController.js`: Gère `/register`, `/login`, `/logout`. Utilise `db.new_user`, `db.login`.
+     - `textController.js`: CRUD pour textes (`/texts`, `/add_text`, `/edit_text/:id`, `/delete_text/:id`). Gère upload PDF (`multer`, `utils/textProcessing.processPdfUpload`), nettoyage (`utils/textProcessing.cleanupText`), résumé IA (`/texts/summarize/:id` via Gemini), réorganisation (`/api/texts/reorder`), déplacement (`/api/texts/move`).
+     - `categoryController.js`: CRUD pour catégories (`/categories`, `/categories/add`, `/categories/:id/rename`, `/categories/:id/delete`). Vérifie si catégorie vide avant suppression.
+     - `practiceController.js`: Affiche page d'entraînement (`/:text_id`), sauvegarde progression (`/api/progress`), gère fin de ligne (`/line-complete` -> `db.update_user_stats`, `db.increment_user_coins`), pénalité (`/penalty` -> `db.decrement_user_coins`), fin de texte (`/api/complete` -> `db.increment_texts_practiced`).
+     - `profileController.js`: Affiche page profil (`/profile`) avec stats (`db.get_user_stats`).
+     - `storeController.js`: Affiche boutique (`/store`), gère achats (`/store/buy` -> `db.decrement_user_coins`, `db.add_owned_item`).
+     - `mainController.js`: Pages simples (ex: `/manual`).
+   - **`middleware/authMiddleware.js`:**
+     - `requireLogin`: Vérifie `req.session.user`.
+     - `requireOwnership`: Vérifie si `req.session.user.id` correspond au `user_id` du texte demandé (via `db.get_text`), attache le texte à `req.text`.
+     - `loadUserData`: Charge les détails complets de l'utilisateur (y compris les pièces) dans `res.locals.currentUser` pour les vues EJS.
+   - **`views/`:** Templates EJS (ex: `index.ejs`, `texts.ejs`, `practice.ejs`, `profile.ejs`, `partials/header.ejs`). Utilisation de `<%= %>` et `<%- %>`, boucles, conditions. `res.locals.currentUser` utilisé dans `header.ejs`.
+   - **`public/`:** Fichiers statiques.
+     - `js/`: Logique côté client (ex: `practice.js` pour gérer la frappe, envoyer requêtes API via `fetch`, `inputHandler.js`, `apiUtils.js`, `statsUtils.js`, `timerManager.js`).
+     - `css/`: Styles.
+     - `sounds/`: Effets sonores.
+   - **`utils/`:**
+     - `textProcessing.js`: `cleanupText` (nettoyage accents, unicode), `processPdfUpload` (utilise `tmp`, `child_process.execFileSync('pdftotext')`, `fs`).
+     - `urlUtils.js`: `buildRedirectUrl` (pour construire URLs avec messages/params).
+   - **`__tests__/`:** Tests unitaires/intégration (Jest, Supertest). Expliquer ce qui est testé (ex: `authController.test.js`, `practiceController.test.js`, `integration.test.js`). Commande: `npm test`.
+   - **Dépendances (`package.json`):** Expliquer le rôle de `express`, `ejs`, `better-sqlite3`, `bcrypt`, `express-session`, `connect-sqlite3`, `multer`, `@google/generative-ai`, `dotenv`, `jest`, `supertest`, `eslint`, `prettier`, `nodemon`.
 
-3. **Models** (data access):
-   - db.js: Database interface using SQLite
+III. Rapport & Prise de Recul (Critères: Complétude, Prise de recul)
 
-4. **Middleware**:
-   - authMiddleware.js: Authentication and authorization checks
+   - **Lien Git:** Vérifier qu'il est dans le rapport.
+   - **Changements / Complétude:**
+     - Comparer l'implémentation finale avec le document de conception initial.
+     - Fonctionnalités non implémentées ou modifiées ? Pourquoi ? (Ex: Complexité de l'IA, gestion fine de la hiérarchie des catégories, boutique plus simple que prévu...).
+   - **Difficultés Rencontrées:**
+     - **Techniques:** Gestion de l'asynchronisme (Node.js), interaction avec `pdftotext`, configuration `multer`, requêtes SQL complexes (jointures, CTE), gestion état côté client (`practice.js`).
+     - **Conceptuelles:** Modélisation base de données (stats, catégories), logique de calcul de la précision/WPM, gestion des erreurs (côté client et serveur).
+     - **Surmontées Comment ?** Recherche Stack Overflow, documentation, tests, refactoring, simplification.
+     - **Avec Recul:** Auriez-vous utilisé une autre techno (ex: ORM type Sequelize, autre lib PDF) ? Mieux découpé le JS client ? Plus de tests unitaires ?
+   - **Originalité & Effort (Bonus):**
+     - Différences avec TP7: Système de catégories, stats détaillées, boutique, upload PDF, intégration IA (si fonctionnelle), tests plus complets, architecture MVC plus stricte.
+     - Outils/Techniques "avancés": `better-sqlite3` (vs `sqlite3` basique), `connect-sqlite3`, `bcrypt`, `multer`, `child_process`, Google Gemini API, Jest/Supertest, ESLint/Prettier, CTE SQL.
 
-## Key Features
+IV. Checklist Finale
+   - [ ] Code fonctionnel (`npm run dev` démarre, `npm test` passe).
+   - [ ] Dépôt Git à jour.
+   - [ ] Archive ZIP prête (<300Mo, nommage correct).
+   - [ ] Rapport PDF prêt (lien Git inclus, points ci-dessus abordés).
+   - [ ] Scénario de démo maîtrisé.
+   - [ ] Prêt à naviguer dans le code et expliquer n'importe quelle partie.
 
-### Text Management
-- Add texts via textarea or PDF upload
-- Edit/delete texts
-- Organize texts in folders/categories
-- Text processing (cleanup, PDF extraction)
+V. Questions Potentielles & Réponses Indicatives
 
-### Typing Practice
-- Track progress through texts
-- Save position in long texts
-- Practice statistics
+   **Q: Comment la gestion de l'authentification et des sessions est-elle implémentée ?**
+   **R:** On utilise `express-session` pour gérer les sessions, avec `connect-sqlite3` pour stocker les données de session dans un fichier SQLite dédié (`sessions.db`). Lors de l'inscription (`/register`), le mot de passe est hashé avec `bcrypt` avant d'être stocké (`db.new_user`). À la connexion (`/login`), le hash stocké est comparé au mot de passe fourni via `bcrypt.compareSync` (`db.login`). Le middleware `requireLogin` vérifie la présence de `req.session.user` pour protéger les routes. Le middleware `loadUserData` charge les détails de l'utilisateur connecté (y compris les pièces) dans `res.locals.currentUser` pour les rendre accessibles dans les vues EJS.
 
-### User Profiles
-- View saved texts
-- See practice statistics
-- Manage account
+   **Q: Pouvez-vous décrire la structure de la base de données, notamment la relation entre les textes et les catégories ?**
+   **R:** La base de données est SQLite (`models/typing_trainer.db`), gérée via `better-sqlite3`. Les tables principales sont `users`, `texts`, `categories`, `user_text_progress`, `user_stats`, et `user_owned_items`. La table `texts` a une colonne `category_id` qui est une clé étrangère (nullable) vers `categories.id`. La table `categories` a une colonne `parent_category_id` (clé étrangère nullable vers elle-même), ce qui permet une structure hiérarchique (dossiers dans des dossiers). Si une catégorie est supprimée, la contrainte `FOREIGN KEY ... ON DELETE SET NULL` sur `texts.category_id` fait que les textes qu'elle contenait sont déplacés à la racine (leur `category_id` devient `NULL`).
 
-## Technical Stack
+   **Q: Comment fonctionne l'upload de PDF et l'extraction du texte ?**
+   **R:** Le `textController.js` utilise `multer` configuré avec `memoryStorage` pour recevoir le fichier uploadé. La fonction `processPdfUpload` dans `utils/textProcessing.js` prend le buffer du fichier, le sauvegarde dans un fichier temporaire (via la librairie `tmp`), exécute la commande externe `pdftotext` sur ce fichier temporaire en utilisant `child_process.execFileSync`, lit le fichier texte résultant, nettoie le contenu extrait (via `cleanupText`), puis supprime les fichiers temporaires.
 
-- Backend: Node.js with Express
-- Database: SQLite
-- PDF Processing: pdftotext command line tool
-- Session Management: express-session with SQLite store
-- Testing: Jest
+   **Q: Comment les statistiques utilisateur (temps, précision) sont-elles calculées et mises à jour ?**
+   **R:** La table `user_stats` stocke des données cumulatives : `texts_practiced`, `total_practice_time_seconds`, `total_accuracy_points`, `accuracy_entries_count`. Quand une ligne est terminée pendant la pratique, le frontend envoie une requête à `POST /practice/line-complete` avec le temps et la précision de la ligne. Le `practiceController` appelle alors `db.update_user_stats`. Cette fonction utilise une requête SQL UPSERT (`INSERT ... ON CONFLICT ... DO UPDATE`) pour ajouter une nouvelle ligne de stats si elle n'existe pas, ou pour incrémenter `total_practice_time_seconds`, `total_accuracy_points`, et `accuracy_entries_count` si elle existe. La précision moyenne est calculée uniquement lors de l'affichage du profil (`db.get_user_stats`) en divisant `total_accuracy_points` par `accuracy_entries_count` (en gérant la division par zéro). Le compteur `texts_practiced` est incrémenté séparément via `db.increment_texts_practiced` lors de l'appel à `POST /api/complete`.
 
-## File Structure
+   **Q: Pouvez-vous expliquer la logique principale du fichier JavaScript côté client pour la page de pratique (`public/js/practice.js`) ?**
+   **R:** Ce script gère l'interactivité de la page d'entraînement. Il écoute les entrées clavier (`inputHandler.js`), compare les caractères tapés avec le texte cible, met à jour l'affichage pour montrer les caractères corrects/incorrects et la position actuelle. Il suit l'index de progression (`progress_index`), calcule la précision et le temps passé par ligne/session (`timerManager.js`, `statsUtils.js`). Il communique avec le backend via des requêtes `fetch` (encapsulées dans `apiUtils.js`) pour :
+      - Sauvegarder la progression (`POST /api/progress`) périodiquement ou lors d'une pause.
+      - Signaler la complétion d'une ligne (`POST /line-complete`) pour obtenir des pièces et mettre à jour les stats incrémentales.
+      - Signaler une pénalité (`POST /penalty`) si le seuil d'erreurs est atteint.
+      - Signaler la fin du texte (`POST /api/complete`) pour incrémenter le compteur de textes pratiqués.
+      Il gère aussi les effets sonores.
 
-controllers/
-  authController.js
-  textController.js
-  profileController.js
-  practiceController.js
-  categoryController.js
+   **Q: Comment avez-vous implémenté la fonctionnalité de réorganisation des textes (drag and drop) ?**
+   **R:** Côté frontend, on utilise probablement une librairie JavaScript comme SortableJS (à vérifier dans les dépendances ou le code JS) pour permettre le glisser-déposer des éléments de la liste de textes. Lorsque l'utilisateur relâche un élément, le script frontend récupère le nouvel ordre des ID de textes et envoie cet array au backend via une requête `POST /api/texts/reorder`. Côté backend, le `textController` reçoit cet array et appelle la fonction `db.update_text_order`. Cette fonction utilise une transaction `better-sqlite3` (`db.transaction(...)`) pour garantir l'atomicité. À l'intérieur de la transaction, elle boucle sur l'array reçu et exécute une requête `UPDATE texts SET order_index = ? WHERE id = ? AND user_id = ?` pour chaque texte, mettant à jour son `order_index` avec sa nouvelle position dans l'array.
 
-services/
-  textService.js
+   **Q: Quel est le rôle du middleware `requireOwnership` ?**
+   **R:** Ce middleware (`middleware/authMiddleware.js`) est utilisé sur les routes qui manipulent un texte spécifique (ex: `/edit_text/:id`, `/practice/:id`). Il récupère d'abord l'ID du texte depuis les paramètres de l'URL (`req.params.text_id`). Ensuite, il utilise `db.get_text` pour récupérer les informations du texte depuis la base de données. Il vérifie si le `user_id` associé à ce texte correspond à l'ID de l'utilisateur actuellement connecté (`req.session.user.id`). Si l'utilisateur est bien le propriétaire, le middleware attache l'objet texte complet à `req.text` pour que le prochain handler (le contrôleur de la route) puisse l'utiliser directement. Si l'utilisateur n'est pas le propriétaire ou si le texte n'existe pas, le middleware renvoie une erreur (ex: redirection vers `/texts` avec un message d'erreur) et empêche l'exécution du contrôleur.
 
-models/
-  db.js
+   **Q: Pourquoi avoir choisi `better-sqlite3` plutôt que le package standard `sqlite3` ?**
+   **R:** `better-sqlite3` offre plusieurs avantages : une API synchrone, ce qui simplifie grandement la gestion du flux d'exécution en Node.js par rapport aux callbacks ou aux Promises chaînées de `sqlite3` ; des performances généralement meilleures ; et des fonctionnalités pratiques intégrées comme les transactions (`db.transaction(...)`) qui sont faciles à utiliser et garantissent l'atomicité des opérations multi-étapes.
 
-middleware/
-  authMiddleware.js
-
-views/
-  *.ejs templates
-
-public/
-  Static assets (CSS, JS)
-
-## Workflow
-
-1. Routes defined in controllers
-2. Business logic handled by services
-3. Data access through models
-4. Authentication via middleware
-5. Views rendered with EJS templates
+   **Q: Comment gérez-vous les éventuelles "race conditions", par exemple lors de la décrémentation des pièces (coins) ?**
+   **R:** Pour la décrémentation des pièces (`db.decrement_user_coins`), la requête `UPDATE` contient une condition `WHERE id = ? AND coins >= ?`. Cette condition vérifie atomiquement (au niveau de la base de données) que l'utilisateur possède suffisamment de pièces *avant* d'effectuer la soustraction. Cela empêche le solde de devenir négatif à cause de requêtes concurrentes qui liraient un solde suffisant mais tenteraient de décrémenter après qu'une autre requête l'ait déjà fait. Pour les opérations nécessitant plusieurs étapes, comme la mise à jour de l'ordre des textes, on utilise des transactions (`db.transaction`) pour s'assurer que toutes les étapes réussissent ou échouent ensemble (atomicité).

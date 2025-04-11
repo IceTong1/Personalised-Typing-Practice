@@ -545,6 +545,110 @@ function get_owned_item_ids(user_id) {
     }
 }
 
+/**
+ * Retrieves statistics for a specific user.
+ * @param {number} user_id - The user's ID.
+ * @returns {object} - An object containing user stats { texts_practiced, total_practice_time_seconds, average_accuracy } or default values if no stats exist.
+ */
+function get_user_stats(user_id) {
+    const stmt = db.prepare('SELECT * FROM user_stats WHERE user_id = ?');
+    const stats = stmt.get(user_id);
+
+    if (stats) {
+        // Calculate average accuracy, handle division by zero
+        const average_accuracy = stats.accuracy_entries_count > 0
+            ? (stats.total_accuracy_points / stats.accuracy_entries_count)
+            : 0;
+        return {
+            texts_practiced: stats.texts_practiced,
+            total_practice_time_seconds: stats.total_practice_time_seconds,
+            average_accuracy: average_accuracy
+        };
+    } else {
+        // Return default stats if no record found
+        return {
+            texts_practiced: 0,
+            total_practice_time_seconds: 0,
+            average_accuracy: 0
+        };
+    }
+}
+
+
+/**
+ * Updates user time and accuracy statistics incrementally after completing a line/block.
+ * Uses UPSERT to create a stats row if one doesn't exist for the user.
+ * Does NOT increment texts_practiced.
+ * @param {number} user_id - The user's ID.
+ * @param {number} time_increment_seconds - The time spent on the completed line/block (in seconds).
+ * @param {number} line_accuracy - The accuracy achieved for the completed line/block (e.g., 95.5).
+ * @returns {boolean} - True if the update/insert was successful, false otherwise.
+ */
+function update_user_stats(user_id, time_increment_seconds, line_accuracy) {
+    // Ensure accuracy is a number and within valid range
+    const numericAccuracy = Number(line_accuracy);
+    if (isNaN(numericAccuracy) || numericAccuracy < 0 || numericAccuracy > 100) {
+        console.error(`Invalid line_accuracy value provided for user ${user_id}: ${line_accuracy}`);
+        return false;
+    }
+     // Ensure time is a non-negative number
+    const numericTime = Number(time_increment_seconds);
+     if (isNaN(numericTime) || numericTime < 0) {
+        console.error(`Invalid time_increment_seconds value provided for user ${user_id}: ${time_increment_seconds}`);
+        return false;
+    }
+
+
+    const stmt = db.prepare(`
+        INSERT INTO user_stats (user_id, texts_practiced, total_practice_time_seconds, total_accuracy_points, accuracy_entries_count)
+        VALUES (?, 0, ?, ?, 1) -- Initial values: 0 texts practiced, add first time/accuracy entry
+        ON CONFLICT(user_id) DO UPDATE SET
+            total_practice_time_seconds = total_practice_time_seconds + excluded.total_practice_time_seconds,
+            total_accuracy_points = total_accuracy_points + excluded.total_accuracy_points,
+            accuracy_entries_count = accuracy_entries_count + 1
+            -- Note: texts_practiced is NOT updated here
+    `);
+    try {
+        // Round the time increment to the nearest second before saving
+        const roundedTimeIncrement = Math.round(numericTime);
+        // Pass user_id, roundedTimeIncrement, and numericAccuracy for both INSERT and potential UPDATE parts
+        stmt.run(user_id, roundedTimeIncrement, numericAccuracy);
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`Incrementally updated stats for user ID ${user_id}: time +${roundedTimeIncrement}s (rounded from ${numericTime.toFixed(2)}s), accuracy ${numericAccuracy}%`);
+        }
+        return true;
+    } catch (err) {
+        console.error(`Error incrementally updating stats for user ID ${user_id}:`, err);
+        return false;
+    }
+}
+
+/**
+ * Increments the texts_practiced count for a user.
+ * Uses UPSERT to handle cases where the user might not have stats yet.
+ * @param {number} user_id - The user's ID.
+ * @returns {boolean} - True if successful, false otherwise.
+ */
+function increment_texts_practiced(user_id) {
+     const stmt = db.prepare(`
+        INSERT INTO user_stats (user_id, texts_practiced, total_practice_time_seconds, total_accuracy_points, accuracy_entries_count)
+        VALUES (?, 1, 0, 0, 0) -- Initial values if no record exists
+        ON CONFLICT(user_id) DO UPDATE SET
+            texts_practiced = texts_practiced + 1
+    `);
+    try {
+        stmt.run(user_id);
+         if (process.env.NODE_ENV === 'development') {
+            console.log(`Incremented texts_practiced for user ID ${user_id}`);
+        }
+        return true;
+    } catch (err) {
+         console.error(`Error incrementing texts_practiced for user ID ${user_id}:`, err);
+        return false;
+    }
+}
+
+
 // --- Exports ---
 // Make the database functions available for other modules (like controllers) to import
 module.exports = {
@@ -565,7 +669,9 @@ module.exports = {
     check_item_ownership,
     add_owned_item,
     get_owned_item_ids,   // Export the new function
-
+    get_user_stats,       // Export the stats getter
+    update_user_stats,    // Export the incremental stats updater
+    increment_texts_practiced, // Export the text count incrementer
     // --- Category Functions ---
 
     /**

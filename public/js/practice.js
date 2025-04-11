@@ -13,7 +13,7 @@ import {
     renderCustomInput, // Needed by inputHandler
     updateCursorPosition, // Needed by inputHandler
 } from './domUtils.js';
-import saveProgressToServer from './apiUtils.js';
+import saveProgressToServer, { sendTextCompletionSignal } from './apiUtils.js'; // Import the correct function for text completion signal
 import createTimerManager from './timerManager.js';
 import createInputHandler from './inputHandler.js';
 import createPracticeInitializer from './practiceInitializer.js'; // Import the new initializer
@@ -112,8 +112,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (resultsContainer) resultsContainer.classList.add('completed');
             // Ensure index reflects full completion if somehow overshot
             practiceState.currentOverallCharIndex = practiceState.totalDisplayLength;
-            updateStats(); // Final stats update
+            updateStats(); // Final stats update before sending
             console.log('Text completed!');
+
+            // --- Send final text completion signal ---
+            // Stats are now sent incrementally per line
+            if (textId) {
+                 console.log(`Sending text completion signal: textId=${textId}`);
+                 sendTextCompletionSignal(textId); // Send signal to increment texts_practiced
+            } else {
+                 console.warn("Cannot send text completion signal: Text ID is missing.");
+            }
+            // --- End send final stats ---
+
             return;
         }
 

@@ -87,3 +87,82 @@ export default async function saveProgressToServer(
     }
     // Note: Button is re-enabled in success timeout or error handlers
 }
+
+/**
+ * Sends incremental line statistics (time, accuracy) and increments coins.
+ * @param {number} lineTimeSeconds - Time taken for the line in seconds.
+ * @param {number} lineAccuracy - Accuracy achieved for the line (0-100).
+ * @param {function} updateCoinDisplayCallback - Optional callback to update UI with new coin count.
+ */
+export async function sendLineCompletionStats(lineTimeSeconds, lineAccuracy, updateCoinDisplayCallback) {
+    if (lineTimeSeconds === undefined || lineTimeSeconds < 0 || lineAccuracy === undefined || lineAccuracy < 0 || lineAccuracy > 100) {
+        console.warn('Cannot send line stats: Invalid time or accuracy.', { lineTimeSeconds, lineAccuracy });
+        return;
+    }
+
+    console.log(`Attempting to send line stats: time=${lineTimeSeconds}s, accuracy=${lineAccuracy}%`);
+
+    try {
+        const response = await fetch('/practice/line-complete', { // Updated endpoint
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                line_time_seconds: lineTimeSeconds,
+                line_accuracy: lineAccuracy,
+            }),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Line stats sent and coin incremented successfully:', result);
+            if (result.success && result.newCoinCount !== null && updateCoinDisplayCallback) {
+                updateCoinDisplayCallback(result.newCoinCount); // Update UI if callback provided
+            }
+        } else {
+            const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+            console.error('Failed to send line stats/increment coin:', response.status, response.statusText, errorData);
+            // Handle error appropriately, maybe alert user
+        }
+    } catch (error) {
+        console.error('Network or other error sending line stats:', error);
+        // Handle error appropriately
+    }
+}
+
+
+/**
+ * Sends the final text completion signal to the server (increments texts_practiced).
+ * @param {string} textId - The ID of the completed text.
+ */
+export async function sendTextCompletionSignal(textId) {
+    if (!textId) {
+        console.warn('Cannot send text completion signal: Text ID is missing.');
+        return;
+    }
+
+    console.log(`Attempting to send text completion signal: textId=${textId}`);
+
+    try {
+        const response = await fetch('/practice/api/complete', { // Endpoint for final completion signal
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text_id: textId, // Only send text_id
+            }),
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Text completion signal sent successfully:', result);
+        } else {
+            const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response' }));
+            console.error('Failed to send text completion signal:', response.status, response.statusText, errorData);
+        }
+    } catch (error) {
+        console.error('Network or other error sending text completion signal:', error);
+    }
+}
