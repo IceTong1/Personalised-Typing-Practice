@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual - Typing Trainer</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <!-- Add specific CSS for manual if needed -->
+    <!-- <link rel="stylesheet" href="/css/manual.css"> -->
+</head>
+<body>
+    <%- include('partials/header') %>
+
+    <main class="container">
+        <h1>Website Manual</h1>
+
+        <section>
+            <h2>Getting Started</h2>
+            <p>Welcome to the Typing Trainer! This platform helps you improve your typing speed and accuracy.</p>
+            <ul>
+                <li><strong>Practice:</strong> Navigate to the 'Practice' section to start typing exercises. Select a text and begin typing in the input area. Your speed (WPM), accuracy, and errors will be tracked in real-time.</li>
+                <li><strong>Profile:</strong> Visit your 'Profile' page (available when logged in) to see your overall statistics (like average WPM, accuracy, total time practiced), progress charts, and view your purchased items on the 'Shelf' tab.</li>
+                <li><strong>Texts:</strong> Browse available texts for practice in the 'Texts' section. Logged-in users can add, edit, categorize, and upload their own texts (including PDFs).</li>
+                <li><strong>Store:</strong> Use the coins you earn to purchase items in the 'Store'. Purchased items can be viewed on your 'Shelf'.</li>
+                <li><strong>Theme Toggle:</strong> Use the sun/moon icon in the header to switch between light and dark themes.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Authentication</h2>
+            <p>To save your progress, manage texts, and use the store, you need an account.</p>
+            <ul>
+                <li><strong>Register:</strong> If you are a new user, click on 'Register' in the header, fill in the required details, and create your account.</li>
+                <li><strong>Login:</strong> If you already have an account, click on 'Login' in the header and enter your credentials.</li>
+                <li><strong>Logout:</strong> You can log out from your account using the 'Logout' link in the header when you are logged in.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>How Practice Works</h2>
+            <p>During a practice session:</p>
+            <ul>
+                <li>The text to be typed is displayed. The current word is highlighted.</li>
+                <li>Type the words exactly as they appear. Correctly typed characters will be highlighted in green, errors in red.</li>
+                <li>Press the spacebar after each word to move to the next.</li>
+                <li>Your Words Per Minute (WPM), accuracy percentage, and error count are updated live.</li>
+                <li>A sound indicates correct or incorrect word completion (if enabled).</li>
+                <li>Upon completion, your results (WPM, accuracy, errors, time) are saved to your profile if you are logged in.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Managing Texts (Logged-in Users)</h2>
+            <p>The 'Texts' page allows you to manage the collection of practice texts:</p>
+            <ul>
+                <li><strong>Adding Texts:</strong> Click the 'Add New Text' button. You can either paste text directly or upload a text file (including `.txt` and `.pdf`). Provide a title, assign a category, and set the difficulty.</li>
+                <li><strong>Editing Texts:</strong> Find the text you want to modify and click the 'Edit' button. You can change the title, text content, category, and difficulty.</li>
+                <li><strong>Deleting Texts:</strong> Click the 'Delete' button next to a text to remove it.</li>
+                <li><strong>Categories:</strong> Texts are organized by categories. You can filter texts by category using the dropdown menu. New categories can be created when adding or editing a text.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Coin Rewards (Logged-in Users)</h2>
+            <p>When logged in, you can earn and spend coins within the application:</p>
+            <ul>
+                <li><strong>Earning Coins:</strong> You earn **1 coin** for every line of text you complete successfully during a practice session.</li>
+                <li><strong>Losing Coins (Penalty):</strong> Making too many errors during practice can result in a penalty, causing you to lose **1 coin**.</li>
+                <li><strong>Spending Coins:</strong> Use your accumulated coins in the 'Store' to purchase available items. Your purchased items can be viewed on the 'Shelf' tab in your Profile.</li>
+            </ul>
+            <p>Your current coin balance is displayed in the header when you are logged in.</p>
+        </section>
+
+        <section>
+            <h2>Tips for Improvement</h2>
+            <ul>
+                <li>Focus on accuracy first, then speed.</li>
+                <li>Maintain a good posture and use proper finger placement (touch typing).</li>
+                <li>Practice regularly, even short sessions help.</li>
+                <li>Don't look at the keyboard while typing.</li>
+                <li>Use the statistics on your profile page to track your progress and identify areas for improvement.</li>
+            </ul>
+        </section>
+
+    </main>
+
+    <%- include('partials/footer') %>
+
+    <!-- Add specific JS for manual if needed -->
+    <!-- <script src="/js/manual.js"></script> -->
+</body>
+</html>
