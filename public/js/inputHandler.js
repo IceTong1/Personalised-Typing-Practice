@@ -232,9 +232,8 @@ function createInputHandler(dependencies) {
 
     function handleKeyDown(event) {
         // console.log('Keydown:', event.key);
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' && !event.shiftKey) { // Handle regular Enter
             event.preventDefault(); // Prevent default Enter behavior (e.g., newline in input)
-
             // --- Replicate necessary checks from handleHiddenInput ---
             // We need to know if the *current* line text is correct *before* Enter is pressed.
             // This requires recalculating some state similar to handleHiddenInput,
@@ -300,6 +299,15 @@ function createInputHandler(dependencies) {
                  console.log("Enter pressed, but line is not correct or empty.");
                  // Optionally play an incorrect sound or provide feedback
                  incorrectSound.play().catch((e) => console.log('Sound play interrupted'));
+            }
+        } else if (event.key === 'Enter' && event.shiftKey) { // Handle Shift + Enter (Skip Line)
+            event.preventDefault();
+            console.log("Shift + Enter pressed, simulating skip button click.");
+            const skipButton = document.getElementById('skip-line-button');
+            if (skipButton) {
+                skipButton.click(); // Trigger the existing button's click handler
+            } else {
+                console.error("Could not find the skip line button to click.");
             }
         }
         // Allow other keys (like Backspace) to be handled by handleHiddenInput
