@@ -161,12 +161,14 @@ function createInputHandler(dependencies) {
      * @returns {boolean} - True if the *entire block* was completed and handled, false otherwise.
      */
     function checkAndHandleIndividualLineCompletion(isLineReadyForCompletion, currentLineText, currentLineIndexInBlock, linesInCurrentBlock) {
-        if (isLineReadyForCompletion && currentLineText.length > 0) {
+        // Allow completion if forced (by Enter key) or if line is ready (e.g., trailing space logic if re-enabled)
+        if (isLineReadyForCompletion) {
             const absoluteLineIndex = practiceState.currentDisplayLineIndex + currentLineIndexInBlock;
             console.log(`Individual line ${absoluteLineIndex} complete.`);
             lineCompleteSound.play().catch((e) => console.log('Sound play interrupted'));
 
-            // --- Calculate Line Stats ---
+            // --- Calculate and Send Line Stats (Only for non-empty lines) ---
+            if (currentLineText.length > 0) {
             const lineEndTime = performance.now();
             const lineTimeSeconds = lineStartTime ? (lineEndTime - lineStartTime) / 1000 : 0;
             // Calculate accuracy using the size of the error positions set
@@ -186,7 +188,8 @@ function createInputHandler(dependencies) {
                  }
             };
             // Call the combined API function
-            sendLineCompletionStats(lineTimeSeconds, currentLineAccuracy, updateCoinDisplayCallback);
+                sendLineCompletionStats(lineTimeSeconds, currentLineAccuracy, updateCoinDisplayCallback);
+            }
 
             // --- Reset Line Tracking ---
             lineStartTime = null; // Will be reset when next line starts
@@ -278,7 +281,8 @@ function createInputHandler(dependencies) {
              const lineTextCorrect = currentInput === textForCurrentLine;
 
             // --- Trigger Completion Logic ---
-            if (lineTextCorrect && textForCurrentLine.length > 0) {
+            // Allow Enter if line is correct OR if line is empty and input is empty
+            if ((lineTextCorrect && textForCurrentLine.length > 0) || (textForCurrentLine.length === 0 && currentInput.length === 0)) {
                  console.log("Enter pressed on correct line, triggering completion.");
                  // Call the completion handler directly
                  // Note: This bypasses the handleHiddenInput's usual flow for this specific case.
