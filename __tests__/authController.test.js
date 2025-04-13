@@ -53,12 +53,13 @@ const findHandler = (method, path) => {
 describe('Auth Controller', () => {
     let req;
     let res;
+    // let next; // Removed unused outer variable declaration
 
     beforeEach(() => {
         // Reset mocks before each test
         jest.clearAllMocks();
         res = mockResponse();
-        next = mockNext(); // Create a new mock next function for each test
+        // next = mockNext(); // Removed assignment to unused outer variable
     });
 
     // --- Registration Tests (POST /register) ---
@@ -313,7 +314,9 @@ describe('Auth Controller', () => {
             }
 
             // Handler should render the page
-            expect(res.render).toHaveBeenCalledWith('register', { error: null });
+            expect(res.render).toHaveBeenCalledWith('register', {
+                error: null,
+            });
         });
 
         test('should redirect to /profile if user is already logged in', () => {

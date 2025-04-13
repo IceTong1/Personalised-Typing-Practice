@@ -143,7 +143,8 @@ const mockResponse = () => {
     res.send = jest.fn().mockReturnValue(res);
     res.json = jest.fn().mockReturnValue(res);
     res.setHeader = jest.fn().mockReturnValue(res);
-    res.download = jest.fn((path, filename, callback) => {
+    res.download = jest.fn((filePath, filename, callback) => {
+        // Renamed 'path' to 'filePath' to avoid shadowing
         if (callback) callback(null);
         return res;
     });
@@ -153,13 +154,11 @@ const mockResponse = () => {
 };
 
 // Mock fs.createReadStream return value at module scope
-const mockReadStream = { pipe: jest.fn(), on: jest.fn() };
 // fs.createReadStream is already mocked by jest.mock('fs')
 // We need to set its return value in beforeEach AFTER clearAllMocks
 
 describe('Text Controller', () => {
     // Controller is now required at the top level again
-    const textControllerRouter = require('../controllers/textController');
     let req;
     let res;
 
@@ -399,7 +398,9 @@ describe('Text Controller', () => {
         test('should fail if extracted PDF text is empty', async () => {
             req = mockRequest({}, { title: 'Empty PDF' }, {}, {}, mockPdfFile);
             // Mock processPdfUpload to throw the specific "Could not extract" error
-            const pdfError = new Error('Could not extract text using pdftotext. PDF might be empty or image-based.');
+            const pdfError = new Error(
+                'Could not extract text using pdftotext. PDF might be empty or image-based.'
+            );
             processPdfUpload.mockRejectedValue(pdfError);
             db.get_all_categories_flat.mockReturnValue([]); // Mock category fetch for error render
 
@@ -481,7 +482,9 @@ describe('Text Controller', () => {
             try {
                 pdfBuffer = fs.readFileSync(pdfPath);
             } catch (err) {
-                throw new Error(`Failed to read test PDF at ${pdfPath}: ${err.message}`);
+                throw new Error(
+                    `Failed to read test PDF at ${pdfPath}: ${err.message}`
+                );
             }
 
             // 3. Create mock file object with real buffer
@@ -494,18 +497,24 @@ describe('Text Controller', () => {
             };
 
             // 4. Prepare mock request
-            req = mockRequest({}, { title: 'Real Accent PDF' }, {}, {}, realPdfFile);
+            req = mockRequest(
+                {},
+                { title: 'Real Accent PDF' },
+                {},
+                {},
+                realPdfFile
+            );
 
             // 5. Mock DB add function
             db.add_text.mockReturnValue(125); // Simulate successful DB insert
 
             // 6. Define expected cleaned text snippet (based on manual analysis)
-            const expectedTextSnippet = "généré le 19 mars 2024";
-            const expectedTextSnippet2 = "complèter un site web"; // Use grave accent as per source PDF typo
-            const expectedTextSnippet3 = "données qu'à des utilisateurs authentifiés"; // Expect standard apostrophe and grave accent 'à'
+            const expectedTextSnippet = 'généré le 19 mars 2024';
+            const expectedTextSnippet2 = 'complèter un site web'; // Use grave accent as per source PDF typo
+            const expectedTextSnippet3 =
+                "données qu'à des utilisateurs authentifiés"; // Expect standard apostrophe and grave accent 'à'
             const expectedTextSnippet4 = "visuelle du site à l'aide"; // Use standard apostrophe
             const expectedTextSnippet5 = "largeur de l'écran"; // Use standard apostrophe
-
 
             // --- Act ---
             // Temporarily replace mocks with real functions for this test only
@@ -519,7 +528,6 @@ describe('Text Controller', () => {
             // Restore mocks immediately after the call
             processPdfUpload.mockImplementation(originalProcessPdf);
             cleanupText.mockImplementation(originalCleanup);
-
 
             // --- Assert ---
             // Check if db.add_text was called
@@ -535,9 +543,10 @@ describe('Text Controller', () => {
             expect(actualSavedText).toContain(expectedTextSnippet4);
             expect(actualSavedText).toContain(expectedTextSnippet5);
 
-
             // Check redirection
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text added successfully!');
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text added successfully!'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
     });

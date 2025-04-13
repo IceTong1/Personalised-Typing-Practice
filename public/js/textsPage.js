@@ -40,10 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Optional: Auto-dismiss after some time
         setTimeout(() => {
-             const alertInstance = bootstrap.Alert.getOrCreateInstance(wrapper.firstChild);
-             if (alertInstance) {
-                 alertInstance.close();
-             }
+            const alertInstance = bootstrap.Alert.getOrCreateInstance(
+                wrapper.firstChild
+            );
+            if (alertInstance) {
+                alertInstance.close();
+            }
         }, 5000); // Auto-dismiss after 5 seconds
     }
 
@@ -299,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             event.stopPropagation();
             console.log('Summarize button clicked.'); // DEBUG
 
-            const textId = summarizeButton.dataset.textId;
+            const { textId } = summarizeButton.dataset;
             if (!textId) {
                 console.error('Text ID missing from summarize button.');
                 alert('Error: Could not identify the text to summarize.');
@@ -307,7 +309,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             summarizeButton.disabled = true;
-            summarizeButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Summarizing...'; // Show loading state
+            summarizeButton.innerHTML =
+                '<i class="fas fa-spinner fa-spin"></i> Summarizing...'; // Show loading state
 
             fetch(`/texts/summarize/${textId}`, {
                 method: 'POST',
@@ -321,36 +324,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(async (response) => {
                     if (!response.ok) {
                         // Try to parse error message from JSON body
-                        let errorData = { message: `HTTP error! status: ${response.status}` };
+                        let errorData = {
+                            message: `HTTP error! status: ${response.status}`,
+                        };
                         try {
                             errorData = await response.json();
-                        } catch (e) { /* Ignore parsing error if body isn't JSON */ }
-                        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                        } catch (e) {
+                            /* Ignore parsing error if body isn't JSON */
+                        }
+                        throw new Error(
+                            errorData.message ||
+                                `HTTP error! status: ${response.status}`
+                        );
                     }
                     return response.json();
                 })
                 .then((result) => {
                     console.log('Summarization successful:', result);
-                    showAlert(`Summary created successfully! New text title: "${result.newTextTitle}". The page will reload shortly.`, 'success');
+                    showAlert(
+                        `Summary created successfully! New text title: "${result.newTextTitle}". The page will reload shortly.`,
+                        'success'
+                    );
                     // Restore button state immediately after success message shown
                     summarizeButton.disabled = false;
-                    summarizeButton.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
+                    summarizeButton.innerHTML =
+                        '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
                     summarizeButton.title = 'Summarize with AI'; // Restore title
 
                     // Refresh the page after a short delay to allow user to see the message
                     setTimeout(() => {
-                         window.location.reload();
+                        window.location.reload();
                     }, 3000); // Reload after 3 seconds
                 })
                 .catch((error) => {
                     console.error('Error summarizing text:', error);
-                    showAlert(`Failed to summarize text: ${error.message}`, 'danger'); // Use Bootstrap alert for errors
+                    showAlert(
+                        `Failed to summarize text: ${error.message}`,
+                        'danger'
+                    ); // Use Bootstrap alert for errors
                     // Restore button state on error
                     summarizeButton.disabled = false;
-                    summarizeButton.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
+                    summarizeButton.innerHTML =
+                        '<i class="fas fa-wand-magic-sparkles"></i>'; // Restore original icon
                     summarizeButton.title = 'Summarize with AI'; // Restore title
                 });
-                // No finally block needed here as success/catch handle button state and reload
+            // No finally block needed here as success/catch handle button state and reload
         }
     });
 });

@@ -112,7 +112,7 @@ router.post('/api/progress', requireLogin, (req, res) => {
                 success: false,
                 message: 'Database error saving progress.',
             });
-            
+
             // This block was incorrectly placed here by the previous diff. Removing it.
         }
     } catch (error) {
@@ -137,34 +137,61 @@ router.post('/api/progress', requireLogin, (req, res) => {
  *  - 400 Bad Request: { success: false, message: string } (for invalid input)
  *  - 500 Internal Server Error: { success: false, message: string }
  */
-router.post('/line-complete', requireLogin, (req, res) => { // Changed path
+router.post('/line-complete', requireLogin, (req, res) => {
+    // Changed path
     console.log('--- Reached /practice/api/line-complete endpoint ---');
     const userId = req.session.user.id;
     const { line_time_seconds, line_accuracy } = req.body;
 
     // --- Validate Input ---
     if (line_time_seconds === undefined || line_accuracy === undefined) {
-        console.error(`Line complete failed: Missing time or accuracy. Body:`, req.body, `User: ${userId}`);
-        return res.status(400).json({ success: false, message: 'Missing required line statistics data.' });
+        console.error(
+            `Line complete failed: Missing time or accuracy. Body:`,
+            req.body,
+            `User: ${userId}`
+        );
+        return res.status(400).json({
+            success: false,
+            message: 'Missing required line statistics data.',
+        });
     }
     const timeSecondsNum = parseFloat(line_time_seconds);
     const accuracyNum = parseFloat(line_accuracy);
 
-    if (isNaN(timeSecondsNum) || isNaN(accuracyNum) || timeSecondsNum < 0 || accuracyNum < 0 || accuracyNum > 100) {
-         console.error(`Line complete failed: Invalid data types or values. Body:`, req.body, `User: ${userId}`);
-         return res.status(400).json({ success: false, message: 'Invalid line statistics data provided.' });
+    if (
+        Number.isNaN(timeSecondsNum) ||
+        Number.isNaN(accuracyNum) ||
+        timeSecondsNum < 0 ||
+        accuracyNum < 0 ||
+        accuracyNum > 100
+    ) {
+        console.error(
+            `Line complete failed: Invalid data types or values. Body:`,
+            req.body,
+            `User: ${userId}`
+        );
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid line statistics data provided.',
+        });
     }
 
     try {
         // --- Update Stats Incrementally ---
-        const statsUpdateSuccess = db.update_user_stats(userId, timeSecondsNum, accuracyNum);
+        const statsUpdateSuccess = db.update_user_stats(
+            userId,
+            timeSecondsNum,
+            accuracyNum
+        );
         if (!statsUpdateSuccess) {
-             // Log the error but proceed to coin increment, as stats update failure might not be critical for user experience
-             console.error(`API (/line-complete): Failed to update incremental stats for user ${userId}. Proceeding with coin increment.`);
-        } else {
-             if (process.env.NODE_ENV === 'development') {
-                 console.log(`API (/line-complete): Incremental stats updated for user ${userId}. Time: ${timeSecondsNum}s, Accuracy: ${accuracyNum}%`);
-             }
+            // Log the error but proceed to coin increment, as stats update failure might not be critical for user experience
+            console.error(
+                `API (/line-complete): Failed to update incremental stats for user ${userId}. Proceeding with coin increment.`
+            );
+        } else if (process.env.NODE_ENV === 'development') {
+            console.log(
+                `API (/line-complete): Incremental stats updated for user ${userId}. Time: ${timeSecondsNum}s, Accuracy: ${accuracyNum}%`
+            );
         }
 
         // --- Increment Coins ---
@@ -176,23 +203,38 @@ router.post('/line-complete', requireLogin, (req, res) => { // Changed path
             const newCoinCount = userDetails ? userDetails.coins : null;
 
             if (newCoinCount !== null) {
-                 if (process.env.NODE_ENV === 'development') {
-                    console.log(`API (/line-complete): Awarded 1 coin to user ${userId}. New total: ${newCoinCount}`);
-                 }
-                res.status(200).json({ success: true, newCoinCount: newCoinCount });
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(
+                        `API (/line-complete): Awarded 1 coin to user ${userId}. New total: ${newCoinCount}`
+                    );
+                }
+                res.status(200).json({
+                    success: true,
+                    newCoinCount,
+                });
             } else {
-                 console.error(`API (/line-complete): Failed to fetch updated coin count for user ${userId} after increment.`);
-                 // Still return success=true as the increment likely worked, but indicate count fetch issue
-                 res.status(200).json({ success: true, newCoinCount: null }); // Indicate success but null count
+                console.error(
+                    `API (/line-complete): Failed to fetch updated coin count for user ${userId} after increment.`
+                );
+                // Still return success=true as the increment likely worked, but indicate count fetch issue
+                res.status(200).json({ success: true, newCoinCount: null }); // Indicate success but null count
             }
         } else {
-            console.error(`API (/line-complete): Failed to increment coins in DB for user ${userId}.`);
+            console.error(
+                `API (/line-complete): Failed to increment coins in DB for user ${userId}.`
+            );
             // Even if coin increment fails, the stats might have updated. Send 500 but maybe client can handle?
-            res.status(500).json({ success: false, message: 'Failed to update coin count.' });
+            res.status(500).json({
+                success: false,
+                message: 'Failed to update coin count.',
+            });
         }
     } catch (error) {
         console.error(`API Error in /line-complete for user ${userId}:`, error); // Updated log message
-        res.status(500).json({ success: false, message: 'An unexpected error occurred.' });
+        res.status(500).json({
+            success: false,
+            message: 'An unexpected error occurred.',
+        });
     }
 });
 
@@ -206,11 +248,14 @@ router.post('/line-complete', requireLogin, (req, res) => { // Changed path
  *  - 400 Bad Request: { success: false, message: string } (e.g., if coins already 0)
  *  - 500 Internal Server Error: { success: false, message: string }
  */
-router.post('/penalty', requireLogin, (req, res) => { // Corrected path
+router.post('/penalty', requireLogin, (req, res) => {
+    // Corrected path
     const userId = req.session.user.id;
     const penaltyAmount = 1; // Decrement by 1 coin per 10 errors
 
-    console.log(`--- Reached /practice/penalty endpoint for user ${userId} ---`); // Updated log message
+    console.log(
+        `--- Reached /practice/penalty endpoint for user ${userId} ---`
+    ); // Updated log message
 
     try {
         const success = db.decrement_user_coins(userId, penaltyAmount);
@@ -221,23 +266,33 @@ router.post('/penalty', requireLogin, (req, res) => { // Corrected path
             const newCoinCount = userDetails ? userDetails.coins : null;
 
             if (process.env.NODE_ENV === 'development') {
-                console.log(`API (/penalty): Applied penalty of ${penaltyAmount} coin(s) to user ${userId}. New total: ${newCoinCount ?? 'N/A'}`); // Updated log message
+                console.log(
+                    `API (/penalty): Applied penalty of ${penaltyAmount} coin(s) to user ${userId}. New total: ${newCoinCount ?? 'N/A'}`
+                ); // Updated log message
             }
-            res.status(200).json({ success: true, newCoinCount: newCoinCount });
-
+            res.status(200).json({ success: true, newCoinCount });
         } else {
             // Decrement failed - likely because coins were already 0
-             if (process.env.NODE_ENV === 'development') {
-                console.log(`API (/penalty): Failed to apply penalty to user ${userId} (likely coins already 0).`); // Updated log message
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    `API (/penalty): Failed to apply penalty to user ${userId} (likely coins already 0).`
+                ); // Updated log message
             }
             // Decrement failed, assume coins are 0.
             const currentCoinCount = 0;
             // Send 400 Bad Request
-            res.status(400).json({ success: false, message: 'Cannot apply penalty, coins already zero.', currentCoinCount: currentCoinCount });
+            res.status(400).json({
+                success: false,
+                message: 'Cannot apply penalty, coins already zero.',
+                currentCoinCount,
+            });
         }
     } catch (error) {
         console.error(`API Error in /penalty for user ${userId}:`, error); // Updated log message
-        res.status(500).json({ success: false, message: 'An unexpected error occurred while applying penalty.' });
+        res.status(500).json({
+            success: false,
+            message: 'An unexpected error occurred while applying penalty.',
+        });
     }
 });
 
@@ -257,15 +312,27 @@ router.post('/api/complete', requireLogin, (req, res) => {
 
     // Basic validation
     if (text_id === undefined) {
-        console.error(`Practice complete failed: Missing text_id. Body:`, req.body, `User: ${userId}`);
-        return res.status(400).json({ success: false, message: 'Missing required text_id.' });
+        console.error(
+            `Practice complete failed: Missing text_id. Body:`,
+            req.body,
+            `User: ${userId}`
+        );
+        return res
+            .status(400)
+            .json({ success: false, message: 'Missing required text_id.' });
     }
 
     // Type validation
     const textIdNum = parseInt(text_id, 10);
-    if (isNaN(textIdNum)) {
-         console.error(`Practice complete failed: Invalid text_id. Body:`, req.body, `User: ${userId}`);
-         return res.status(400).json({ success: false, message: 'Invalid text_id provided.' });
+    if (Number.isNaN(textIdNum)) {
+        console.error(
+            `Practice complete failed: Invalid text_id. Body:`,
+            req.body,
+            `User: ${userId}`
+        );
+        return res
+            .status(400)
+            .json({ success: false, message: 'Invalid text_id provided.' });
     }
 
     try {
@@ -273,20 +340,33 @@ router.post('/api/complete', requireLogin, (req, res) => {
         const success = db.increment_texts_practiced(userId);
 
         if (success) {
-             if (process.env.NODE_ENV === 'development') {
-                console.log(`Practice complete recorded (texts_practiced incremented) for User ${userId}, Text ${textIdNum}.`);
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    `Practice complete recorded (texts_practiced incremented) for User ${userId}, Text ${textIdNum}.`
+                );
             }
             // Optionally: Reset progress for this text upon completion?
             // db.save_progress(userId, textIdNum, 0); // Uncomment to reset progress
 
             res.status(200).json({ success: true });
         } else {
-            console.error(`Practice complete DB error: Failed to increment texts_practiced for User ${userId}, Text ${textIdNum}`);
-            res.status(500).json({ success: false, message: 'Database error incrementing texts practiced count.' });
+            console.error(
+                `Practice complete DB error: Failed to increment texts_practiced for User ${userId}, Text ${textIdNum}`
+            );
+            res.status(500).json({
+                success: false,
+                message: 'Database error incrementing texts practiced count.',
+            });
         }
     } catch (error) {
-        console.error(`Unexpected error recording practice completion for User ${userId}, Text ${textIdNum}:`, error);
-        res.status(500).json({ success: false, message: 'Server error recording completion.' });
+        console.error(
+            `Unexpected error recording practice completion for User ${userId}, Text ${textIdNum}:`,
+            error
+        );
+        res.status(500).json({
+            success: false,
+            message: 'Server error recording completion.',
+        });
     }
 });
 

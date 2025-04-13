@@ -1,5 +1,9 @@
 // public/js/practiceInitializer.js
-import { splitIntoLines, calculateTotalDisplayLength, getDisplayLineAndOffset } from './textUtils.js';
+import {
+    splitIntoLines,
+    calculateTotalDisplayLength,
+    getDisplayLineAndOffset,
+} from './textUtils.js';
 
 /**
  * Calculates the target character width for lines based on container width and font style.
@@ -33,17 +37,22 @@ function calculateTargetWidth(containerElement) {
             }
             const charBuffer = 12;
             targetWidth = Math.max(1, charCount - 1 - charBuffer);
-            console.log(`Direct Measurement: Container: ${containerWidth}px, Chars ('${testChar}') fit before buffer: ${charCount - 1}, Final Target Width: ${targetWidth}`);
+            console.log(
+                `Direct Measurement: Container: ${containerWidth}px, Chars ('${testChar}') fit before buffer: ${charCount - 1}, Final Target Width: ${targetWidth}`
+            );
         } catch (e) {
             console.error('Error during direct width measurement:', e);
         } finally {
-             if (tempSpan.parentNode === document.body) { // Check parent before removing
-               document.body.removeChild(tempSpan);
+            if (tempSpan.parentNode === document.body) {
+                // Check parent before removing
+                document.body.removeChild(tempSpan);
             }
         }
         targetWidth = Math.max(20, targetWidth);
     } else {
-        console.warn(`Container clientWidth is 0. Using default targetWidth: ${targetWidth}`);
+        console.warn(
+            `Container clientWidth is 0. Using default targetWidth: ${targetWidth}`
+        );
     }
     return targetWidth;
 }
@@ -78,7 +87,7 @@ function createPracticeInitializer(dependencies) {
         renderLine,
         updateStats,
         calculateStartIndexForLine,
-        linesToShowSelect // Added dependency
+        linesToShowSelect, // Added dependency
     } = dependencies;
 
     /**
@@ -86,25 +95,40 @@ function createPracticeInitializer(dependencies) {
      * @param {boolean} [startFromSaved=false] - If true, starts from the saved progress index.
      */
     function initialize(startFromSaved = false) {
-        console.log(`Initializing/Resetting practice. Start from saved: ${startFromSaved}`);
+        console.log(
+            `Initializing/Resetting practice. Start from saved: ${startFromSaved}`
+        );
         timerManager.reset();
 
         // --- Read Lines to Show Setting ---
         practiceState.linesToShow = parseInt(linesToShowSelect.value, 10) || 1;
-        console.log(`[Debug] Lines to show set to: ${practiceState.linesToShow}`);
+        console.log(
+            `[Debug] Lines to show set to: ${practiceState.linesToShow}`
+        );
 
         // --- Width Calculation & Line Splitting ---
         const targetWidth = calculateTargetWidth(lineDisplay);
         console.log(`[Debug] Calculated targetWidth: ${targetWidth}`);
         practiceState.lines = splitIntoLines(fullText, targetWidth);
-        console.log(`[Debug] Generated lines array (length ${practiceState.lines.length}):`, practiceState.lines);
-        practiceState.totalDisplayLength = calculateTotalDisplayLength(practiceState.lines);
+        console.log(
+            `[Debug] Generated lines array (length ${practiceState.lines.length}):`,
+            practiceState.lines
+        );
+        practiceState.totalDisplayLength = calculateTotalDisplayLength(
+            practiceState.lines
+        );
 
         // --- Determine Starting Point ---
         let startingOverallIndex = 0;
-        if (startFromSaved && initialProgressIndex > 0 && initialProgressIndex < practiceState.totalDisplayLength) {
+        if (
+            startFromSaved &&
+            initialProgressIndex > 0 &&
+            initialProgressIndex < practiceState.totalDisplayLength
+        ) {
             startingOverallIndex = initialProgressIndex;
-            console.log(`Starting from saved progress index: ${startingOverallIndex}`);
+            console.log(
+                `Starting from saved progress index: ${startingOverallIndex}`
+            );
         } else {
             console.log('Starting from the beginning.');
         }
@@ -128,14 +152,17 @@ function createPracticeInitializer(dependencies) {
 
         // --- Handle Starting Mid-line (Potential Enhancement) ---
         if (startOffset > 0) {
-            console.warn(`Starting offset ${startOffset} detected, but currently starting line fresh.`);
+            console.warn(
+                `Starting offset ${startOffset} detected, but currently starting line fresh.`
+            );
             // If implementing resume mid-line, logic would go here to:
             // - Set practiceState.currentInputValue
             // - Call renderCustomInput
             // - Mark spans as correct
             // - Adjust totalTypedChars/Entries
             // For now, reset index to start of the line if we started fresh visually
-            practiceState.currentOverallCharIndex = calculateStartIndexForLine(startLine);
+            practiceState.currentOverallCharIndex =
+                calculateStartIndexForLine(startLine);
         }
 
         // --- Reset Visual Elements ---
@@ -158,7 +185,7 @@ function createPracticeInitializer(dependencies) {
     return {
         initialize, // Expose the main initialization/reset function
         reset: () => initialize(false), // Convenience method for resetting to start
-        resetFromSaved: () => initialize(true) // Convenience method for resetting to saved
+        resetFromSaved: () => initialize(true), // Convenience method for resetting to saved
     };
 }
 

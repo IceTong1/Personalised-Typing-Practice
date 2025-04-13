@@ -35,13 +35,14 @@ jest.mock('../middleware/authMiddleware', () => ({
         const userId = req.session?.user?.id;
         // Simplified mock for practice tests - assumes ownership if user ID is 1 and text ID is 100
         if (userId === 1 && textId === 100) {
-             req.text = { // Attach a minimal text object needed by the GET route
-                 id: textId,
-                 user_id: userId,
-                 title: `Mock Text ${textId}`,
-                 content: 'Content',
-                 progress_index: 0,
-             };
+            req.text = {
+                // Attach a minimal text object needed by the GET route
+                id: textId,
+                user_id: userId,
+                title: `Mock Text ${textId}`,
+                content: 'Content',
+                progress_index: 0,
+            };
             next();
         } else if (
             res &&
@@ -50,14 +51,13 @@ jest.mock('../middleware/authMiddleware', () => ({
         ) {
             res.status(403).send('Forbidden');
         } else {
-             console.error(
-                 'Mock Middleware Error: Response object not fully functional in requireOwnership.'
-             );
-             // Simulate error or just don't call next()
+            console.error(
+                'Mock Middleware Error: Response object not fully functional in requireOwnership.'
+            );
+            // Simulate error or just don't call next()
         }
     }),
 }));
-
 
 // --- Require Controller AFTER mocks ---
 const practiceControllerRouter = require('../controllers/practiceController');
@@ -114,7 +114,6 @@ const mockResponse = () => {
     return res;
 };
 
-
 describe('Practice Controller', () => {
     let req;
     let res;
@@ -142,7 +141,10 @@ describe('Practice Controller', () => {
             await requireOwnership(req, res, jest.fn()); // Call middleware to attach req.text if needed by handler logic directly
             await getPracticeHandler(req, res);
 
-            expect(db.get_text).toHaveBeenCalledWith('100', req.session.user.id);
+            expect(db.get_text).toHaveBeenCalledWith(
+                '100',
+                req.session.user.id
+            );
             expect(res.render).toHaveBeenCalledWith('practice', {
                 user: req.session.user,
                 text: mockTextData,
@@ -158,8 +160,13 @@ describe('Practice Controller', () => {
             await requireOwnership(req, res, jest.fn());
             await getPracticeHandler(req, res);
 
-            expect(db.get_text).toHaveBeenCalledWith('100', req.session.user.id);
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Text not found.');
+            expect(db.get_text).toHaveBeenCalledWith(
+                '100',
+                req.session.user.id
+            );
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Text not found.'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
 
@@ -174,15 +181,19 @@ describe('Practice Controller', () => {
             await requireOwnership(req, res, jest.fn());
             await getPracticeHandler(req, res);
 
-            expect(db.get_text).toHaveBeenCalledWith('100', req.session.user.id);
-            expect(res.redirect).toHaveBeenCalledWith('/texts?message=Error loading practice text.');
+            expect(db.get_text).toHaveBeenCalledWith(
+                '100',
+                req.session.user.id
+            );
+            expect(res.redirect).toHaveBeenCalledWith(
+                '/texts?message=Error loading practice text.'
+            );
             expect(res.render).not.toHaveBeenCalled();
         });
 
-         // Note: Ownership failure is handled by the requireOwnership mock redirecting/sending 403,
-         // so we don't explicitly test the handler for that case here, assuming middleware works.
+        // Note: Ownership failure is handled by the requireOwnership mock redirecting/sending 403,
+        // so we don't explicitly test the handler for that case here, assuming middleware works.
     });
-
 
     // --- POST /api/progress ---
     describe('POST /api/progress', () => {
@@ -242,7 +253,7 @@ describe('Practice Controller', () => {
             });
         });
 
-         test('should return 400 if progress_index is negative', async () => {
+        test('should return 400 if progress_index is negative', async () => {
             req = mockRequest({}, { text_id: '100', progress_index: -10 });
 
             await postProgressHandler(req, res);

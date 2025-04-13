@@ -10,12 +10,16 @@ import { calculateWPM } from './statsUtils.js';
  */
 function createTimerManager(state, timerElement, wpmElement) {
     const manager = {
-        state: state, // Reference to the shared state object
-        timerElement: timerElement,
-        wpmElement: wpmElement,
+        state, // Reference to the shared state object
+        timerElement,
+        wpmElement,
 
         start() {
-            if (!manager.state.timerRunning && manager.state.currentDisplayLineIndex < manager.state.lines.length) {
+            if (
+                !manager.state.timerRunning &&
+                manager.state.currentDisplayLineIndex <
+                    manager.state.lines.length
+            ) {
                 manager.state.startTime = manager.state.startTime || new Date();
                 manager.state.timerRunning = true;
                 // Clear any existing interval before starting a new one
@@ -37,13 +41,18 @@ function createTimerManager(state, timerElement, wpmElement) {
         updateDisplay() {
             if (!manager.state.startTime) return;
             const currentTime = new Date();
-            manager.state.timeElapsed = Math.floor((currentTime - manager.state.startTime) / 1000);
+            manager.state.timeElapsed = Math.floor(
+                (currentTime - manager.state.startTime) / 1000
+            );
             if (manager.timerElement) {
                 manager.timerElement.textContent = manager.state.timeElapsed;
             }
             // Update WPM display periodically
             if (manager.wpmElement) {
-                manager.wpmElement.textContent = calculateWPM(manager.state.totalTypedChars, manager.state.timeElapsed);
+                manager.wpmElement.textContent = calculateWPM(
+                    manager.state.totalTypedChars,
+                    manager.state.timeElapsed
+                );
             }
         },
 
@@ -51,10 +60,10 @@ function createTimerManager(state, timerElement, wpmElement) {
             manager.stop();
             manager.state.startTime = null;
             manager.state.timeElapsed = 0;
-             if (manager.timerElement) {
+            if (manager.timerElement) {
                 manager.timerElement.textContent = '0'; // Reset display too
             }
-        }
+        },
     };
 
     // Ensure updateDisplay has the correct 'this' context if needed,

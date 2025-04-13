@@ -8,11 +8,11 @@ const cleanupText = (inputText) => {
     if (!inputText) return ''; // Handle null/undefined input gracefully
 
     // Define regexes for different accent types, matching both spacing and combining forms
-    const acute = /[\u00B4\u0301]/; // ´ or combining acute
-    const grave = /[`\u0300]/;     // ` or combining grave
-    const circumflex = /[\u005E\u0302]/; // ^ or combining circumflex
-    const cedilla = /[\u00B8\u0327]/;   // ¸ or combining cedilla
-    const diaeresis = /[\u00A8\u0308]/; // ¨ or combining diaeresis
+    const acute = /(?:´|\u0301)/; // ´ or combining acute - Use alternation
+    const grave = /(?:`|\u0300)/; // ` or combining grave - Use alternation
+    const circumflex = /(?:\^|\u0302)/; // ^ or combining circumflex - Use alternation
+    const cedilla = /(?:¸|\u0327)/; // ¸ or combining cedilla - Use alternation
+    const diaeresis = /(?:¨|\u0308)/; // ¨ or combining diaeresis - Use alternation
 
     let cleaned = inputText;
 
@@ -21,36 +21,36 @@ const cleanupText = (inputText) => {
     // Pass 1: Fix Accent OptionalSpace Letter -> Precomposed
     // Handles cases like ´ e -> é, using explicit space/tab matching
     cleaned = cleaned
-        .replace(new RegExp(`${acute.source}[ \t]*e`, 'gi'), 'é')
-        .replace(new RegExp(`${grave.source}[ \t]*a`, 'gi'), 'à')
-        .replace(new RegExp(`${grave.source}[ \t]*e`, 'gi'), 'è')
-        .replace(new RegExp(`${grave.source}[ \t]*u`, 'gi'), 'ù')
-        .replace(new RegExp(`${circumflex.source}[ \t]*a`, 'gi'), 'â')
-        .replace(new RegExp(`${circumflex.source}[ \t]*e`, 'gi'), 'ê')
-        .replace(new RegExp(`${circumflex.source}[ \t]*i`, 'gi'), 'î')
-        .replace(new RegExp(`${circumflex.source}[ \t]*o`, 'gi'), 'ô')
-        .replace(new RegExp(`${circumflex.source}[ \t]*u`, 'gi'), 'û')
-        .replace(new RegExp(`${cedilla.source}[ \t]*c`, 'gi'), 'ç')
-        .replace(new RegExp(`${diaeresis.source}[ \t]*e`, 'gi'), 'ë')
-        .replace(new RegExp(`${diaeresis.source}[ \t]*i`, 'gi'), 'ï')
-        .replace(new RegExp(`${diaeresis.source}[ \t]*u`, 'gi'), 'ü');
+        .replace(new RegExp(`${acute.source}[ \\t]*e`, 'gi'), 'é') // Add back .source
+        .replace(new RegExp(`${grave.source}[ \\t]*a`, 'gi'), 'à') // Add back .source
+        .replace(new RegExp(`${grave.source}[ \\t]*e`, 'gi'), 'è') // Add back .source
+        .replace(new RegExp(`${grave.source}[ \\t]*u`, 'gi'), 'ù') // Add back .source
+        .replace(new RegExp(`${circumflex.source}[ \\t]*a`, 'gi'), 'â') // Add back .source
+        .replace(new RegExp(`${circumflex.source}[ \\t]*e`, 'gi'), 'ê') // Add back .source
+        .replace(new RegExp(`${circumflex.source}[ \\t]*i`, 'gi'), 'î') // Add back .source
+        .replace(new RegExp(`${circumflex.source}[ \\t]*o`, 'gi'), 'ô') // Add back .source
+        .replace(new RegExp(`${circumflex.source}[ \\t]*u`, 'gi'), 'û') // Add back .source
+        .replace(new RegExp(`${cedilla.source}[ \\t]*c`, 'gi'), 'ç') // Add back .source
+        .replace(new RegExp(`${diaeresis.source}[ \\t]*e`, 'gi'), 'ë') // Add back .source
+        .replace(new RegExp(`${diaeresis.source}[ \\t]*i`, 'gi'), 'ï') // Add back .source
+        .replace(new RegExp(`${diaeresis.source}[ \\t]*u`, 'gi'), 'ü'); // Add back .source
 
     // Pass 2: Fix Letter OptionalSpace Accent -> Precomposed
     // Handles cases like e ´ -> é, using explicit space/tab matching
     cleaned = cleaned
-        .replace(new RegExp(`a[ \t]*${grave.source}`, 'gi'), 'à')
-        .replace(new RegExp(`a[ \t]*${circumflex.source}`, 'gi'), 'â')
-        .replace(new RegExp(`c[ \t]*${cedilla.source}`, 'gi'), 'ç')
-        .replace(new RegExp(`e[ \t]*${acute.source}`, 'gi'), 'é')
-        .replace(new RegExp(`e[ \t]*${grave.source}`, 'gi'), 'è')
-        .replace(new RegExp(`e[ \t]*${circumflex.source}`, 'gi'), 'ê')
-        .replace(new RegExp(`e[ \t]*${diaeresis.source}`, 'gi'), 'ë')
-        .replace(new RegExp(`i[ \t]*${circumflex.source}`, 'gi'), 'î')
-        .replace(new RegExp(`i[ \t]*${diaeresis.source}`, 'gi'), 'ï')
-        .replace(new RegExp(`o[ \t]*${circumflex.source}`, 'gi'), 'ô')
-        .replace(new RegExp(`u[ \t]*${grave.source}`, 'gi'), 'ù')
-        .replace(new RegExp(`u[ \t]*${circumflex.source}`, 'gi'), 'û')
-        .replace(new RegExp(`u[ \t]*${diaeresis.source}`, 'gi'), 'ü');
+        .replace(new RegExp(`a[ \\t]*${grave.source}`, 'gi'), 'à') // Add back .source
+        .replace(new RegExp(`a[ \\t]*${circumflex.source}`, 'gi'), 'â') // Add back .source
+        .replace(new RegExp(`c[ \\t]*${cedilla.source}`, 'gi'), 'ç') // Add back .source
+        .replace(new RegExp(`e[ \\t]*${acute.source}`, 'gi'), 'é') // Add back .source
+        .replace(new RegExp(`e[ \\t]*${grave.source}`, 'gi'), 'è') // Add back .source
+        .replace(new RegExp(`e[ \\t]*${circumflex.source}`, 'gi'), 'ê') // Add back .source
+        .replace(new RegExp(`e[ \\t]*${diaeresis.source}`, 'gi'), 'ë') // Add back .source
+        .replace(new RegExp(`i[ \\t]*${circumflex.source}`, 'gi'), 'î') // Add back .source
+        .replace(new RegExp(`i[ \\t]*${diaeresis.source}`, 'gi'), 'ï') // Add back .source
+        .replace(new RegExp(`o[ \\t]*${circumflex.source}`, 'gi'), 'ô') // Add back .source
+        .replace(new RegExp(`u[ \\t]*${grave.source}`, 'gi'), 'ù') // Add back .source
+        .replace(new RegExp(`u[ \\t]*${circumflex.source}`, 'gi'), 'û') // Add back .source
+        .replace(new RegExp(`u[ \\t]*${diaeresis.source}`, 'gi'), 'ü'); // Add back .source
 
     // Apostrophe replacement moved AFTER normalization
 
@@ -62,7 +62,7 @@ const cleanupText = (inputText) => {
 
     // Trim whitespace from start/end
     return finalCleaned.trim();
-    return normalizedText.trim();
+    // return normalizedText.trim(); // Unreachable code removed
 };
 
 // --- PDF Processing Helper ---
@@ -115,7 +115,9 @@ async function processPdfUpload(uploadedFile) {
             // Re-throw the specific error from above
             throw execError;
         } else {
-            throw new Error(`Error processing PDF with pdftotext: ${execError.message}`);
+            throw new Error(
+                `Error processing PDF with pdftotext: ${execError.message}`
+            );
         }
     } finally {
         if (tempFilePath && fs.existsSync(tempFilePath)) {
@@ -132,7 +134,6 @@ async function processPdfUpload(uploadedFile) {
         }
     }
 }
-
 
 module.exports = {
     cleanupText,

@@ -19,8 +19,8 @@ I. Vue d'Ensemble du Projet & Démonstration (10 min)
      5.  Sauvegarde de la progression pendant l'entraînement.
      6.  Système de récompense (pièces gagnées par ligne) et pénalité (pièces perdues pour erreurs). Afficher le solde.
      7.  Page de profil affichant les statistiques (textes pratiqués, temps total, précision moyenne).
-     8.  (Si implémenté et configuré) Fonctionnalité de résumé de texte via IA.
-     9.  (Si implémenté) Boutique pour dépenser les pièces.
+     8.  Fonctionnalité de résumé de texte via IA.
+     9.  Boutique pour dépenser les pièces.
    - **Points Techniques à Souligner pendant la Démo:**
      - Structure MVC (expliquer brièvement `server.js`, `controllers`, `models`, `views`).
      - Interaction client-serveur (ex: sauvegarde de progression via API POST `/practice/api/progress`).

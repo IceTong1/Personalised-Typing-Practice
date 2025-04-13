@@ -5,9 +5,6 @@ const router = express.Router(); // Create a new router object
 // const multer = require('multer'); // No longer needed at top level? Let's re-add it.
 const multer = require('multer'); // Ensure multer is required before use
 // const pdfParse = require('pdf-parse'); // No longer needed (using pdftotext)
-const { execFileSync } = require('child_process'); // For running external commands synchronously (pdftotext)
-const fs = require('fs'); // File system module for writing/deleting temporary files
-const tmp = require('tmp'); // Library for creating temporary file paths
 // const { URLSearchParams } = require('url'); // No longer needed here, moved to urlUtils
 const { GoogleGenerativeAI } = require('@google/generative-ai'); // Added for Gemini
 require('dotenv').config(); // Added to load .env variables
@@ -21,11 +18,17 @@ const { buildRedirectUrl } = require('../utils/urlUtils'); // Import URL utils
 
 // --- Gemini AI Client Initialization ---
 // Ensure GEMINI_API_KEY is set in your .env file
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
-const geminiModel = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' }) : null;
+const genAI = process.env.GEMINI_API_KEY
+    ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+    : null;
+const geminiModel = genAI
+    ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+    : null;
 
 if (!genAI) {
-    console.warn("GEMINI_API_KEY not found in .env file. AI summarization feature will be disabled.");
+    console.warn(
+        'GEMINI_API_KEY not found in .env file. AI summarization feature will be disabled.'
+    );
 }
 // --- Helper Functions ---
 
@@ -115,7 +118,7 @@ router.get('/add_text', requireLogin, (req, res) => {
         let selectedFolderId = null;
         if (requestedFolderId) {
             const parsedId = parseInt(requestedFolderId, 10);
-            if (!isNaN(parsedId)) {
+            if (!Number.isNaN(parsedId)) {
                 selectedFolderId = parsedId;
                 if (process.env.NODE_ENV === 'development')
                     console.log(`Pre-selecting folder ID: ${selectedFolderId}`);
@@ -172,7 +175,10 @@ router.post(
     '/add_text',
     requireLogin,
     // Define and use multer middleware inline
-    multer({ storage: multer.memoryStorage(), fileFilter: pdfFileFilter }).single('pdfFile'),
+    multer({
+        storage: multer.memoryStorage(),
+        fileFilter: pdfFileFilter,
+    }).single('pdfFile'),
     async (req, res) => {
         // Extract title from form body
         // Extract title, content, and category_id from form body
@@ -239,9 +245,13 @@ router.post(
                     renderArgs.error = pdfError.message; // Use the error message from the helper
                     // Re-fetch categories before rendering error
                     try {
-                        renderArgs.categories = db.get_all_categories_flat(userId);
+                        renderArgs.categories =
+                            db.get_all_categories_flat(userId);
                     } catch (fetchErr) {
-                        console.error('Error re-fetching categories for PDF error render:', fetchErr);
+                        console.error(
+                            'Error re-fetching categories for PDF error render:',
+                            fetchErr
+                        );
                         renderArgs.categories = []; // Default to empty if fetch fails
                     }
                     return res.render('add_text', renderArgs);
@@ -500,95 +510,127 @@ router.post(
  * Description: Summarizes a given text using AI and saves it as a new text.
  * Middleware: requireLogin, requireOwnership (to ensure user owns the text being summarized)
  */
-router.post('/texts/summarize/:id', requireLogin, requireOwnership, async (req, res) => {
-    if (!geminiModel) {
-        return res.status(503).json({ message: 'AI Service is not configured or unavailable. Missing API Key.' });
+router.post(
+    '/texts/summarize/:id',
+    requireLogin,
+    requireOwnership,
+    async (req, res) => {
+        if (!geminiModel) {
+            return res.status(503).json({
+                message:
+                    'AI Service is not configured or unavailable. Missing API Key.',
+            });
+        }
+
+        try {
+            const originalTextId = req.params.id; // Renamed from text_id for clarity
+            const userId = req.session.user.id;
+
+            // req.text is populated by requireOwnership middleware
+            const originalText = req.text;
+
+            if (!originalText) {
+                // This case should ideally be caught by requireOwnership, but double-check
+                return res.status(404).json({
+                    message: 'Original text not found or not owned by user.',
+                });
+            }
+
+            if (
+                !originalText.content ||
+                originalText.content.trim().length === 0
+            ) {
+                return res
+                    .status(400)
+                    .json({ message: 'Cannot summarize empty text.' });
+            }
+
+            const prompt = `Detect the language of the following text and provide a detailed summary (in that same language):\n\n---\n${originalText.content}\n---`;
+
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    `Sending prompt to Gemini for text ID ${originalTextId} (first 100 chars): ${prompt.substring(0, 100)}...`
+                );
+            }
+
+            const result = await geminiModel.generateContent(prompt);
+            const response = await result.response;
+            const summaryContent = response.text();
+
+            if (!summaryContent) {
+                console.error(
+                    `Gemini API did not return content for text ID: ${originalTextId}`
+                );
+                throw new Error('AI did not return a summary.');
+            }
+
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    `Received summary from Gemini (first 100 chars): ${summaryContent.substring(0, 100)}...`
+                );
+            }
+
+            // Create a new text entry for the summary
+            // Save in the same category as the original text
+            const newTextId = db.add_text(
+                userId,
+                `Summary of: ${originalText.title}`,
+                summaryContent.trim(), // Trim the summary content
+                originalText.category_id // Save summary in the same folder as the original
+            );
+
+            if (newTextId === -1) {
+                console.error(
+                    `Failed to save summary to DB for original text ID: ${originalTextId}, User ID: ${userId}`
+                );
+                throw new Error('Failed to save the summary to the database.');
+            }
+
+            const newTextTitle = `Summary of: ${originalText.title}`; // Get the title for the response
+            if (process.env.NODE_ENV === 'development') {
+                console.log(
+                    `Summary saved as new text ID: ${newTextId}, Title: ${newTextTitle}`
+                );
+            }
+
+            res.status(201).json({
+                message: 'Summary created successfully',
+                newTextId,
+                newTextTitle,
+            });
+        } catch (error) {
+            console.error(`Error summarizing text ID ${req.params.id}:`, error);
+            let errorMessage =
+                'Failed to summarize text due to an internal error.';
+            let statusCode = 500;
+
+            if (error.message.includes('AI did not return')) {
+                errorMessage = error.message;
+                statusCode = 502; // Bad Gateway (issue communicating with AI)
+            } else if (
+                error.message.includes('FETCH_ERROR') ||
+                error.message.includes(
+                    'request to https://generativelanguage.googleapis.com failed'
+                )
+            ) {
+                errorMessage = 'Network error communicating with AI service.';
+                statusCode = 504; // Gateway Timeout
+            } else if (error.message.includes('API key not valid')) {
+                errorMessage = 'AI Service Error: Invalid API Key.';
+                statusCode = 503; // Service Unavailable (config issue)
+            } else if (error.message.includes('Failed to save the summary')) {
+                errorMessage = error.message;
+                statusCode = 500; // Internal DB error
+            }
+            // Consider more specific error handling based on AI API responses if needed
+
+            res.status(statusCode).json({
+                message: errorMessage,
+                details: error.message,
+            });
+        }
     }
-
-    try {
-        const originalTextId = req.params.id; // Renamed from text_id for clarity
-        const userId = req.session.user.id;
-
-        // req.text is populated by requireOwnership middleware
-        const originalText = req.text;
-
-        if (!originalText) {
-            // This case should ideally be caught by requireOwnership, but double-check
-            return res.status(404).json({ message: 'Original text not found or not owned by user.' });
-        }
-
-        if (!originalText.content || originalText.content.trim().length === 0) {
-             return res.status(400).json({ message: 'Cannot summarize empty text.' });
-        }
-
-        const prompt = `Detect the language of the following text and provide a detailed summary (in that same language):\n\n---\n${originalText.content}\n---`;
-
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`Sending prompt to Gemini for text ID ${originalTextId} (first 100 chars): ${prompt.substring(0, 100)}...`);
-        }
-
-        const result = await geminiModel.generateContent(prompt);
-        const response = await result.response;
-        const summaryContent = response.text();
-
-        if (!summaryContent) {
-            console.error(`Gemini API did not return content for text ID: ${originalTextId}`);
-            throw new Error("AI did not return a summary.");
-        }
-
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`Received summary from Gemini (first 100 chars): ${summaryContent.substring(0, 100)}...`);
-        }
-
-        // Create a new text entry for the summary
-        // Save in the same category as the original text
-        const newTextId = db.add_text(
-            userId,
-            `Summary of: ${originalText.title}`,
-            summaryContent.trim(), // Trim the summary content
-            originalText.category_id // Save summary in the same folder as the original
-        );
-
-        if (newTextId === -1) {
-             console.error(`Failed to save summary to DB for original text ID: ${originalTextId}, User ID: ${userId}`);
-             throw new Error('Failed to save the summary to the database.');
-        }
-
-         const newTextTitle = `Summary of: ${originalText.title}`; // Get the title for the response
-         if (process.env.NODE_ENV === 'development') {
-            console.log(`Summary saved as new text ID: ${newTextId}, Title: ${newTextTitle}`);
-         }
-
-        res.status(201).json({
-            message: 'Summary created successfully',
-            newTextId: newTextId,
-            newTextTitle: newTextTitle
-        });
-
-    } catch (error) {
-        console.error(`Error summarizing text ID ${req.params.id}:`, error);
-        let errorMessage = "Failed to summarize text due to an internal error.";
-        let statusCode = 500;
-
-        if (error.message.includes("AI did not return")) {
-            errorMessage = error.message;
-            statusCode = 502; // Bad Gateway (issue communicating with AI)
-        } else if (error.message.includes("FETCH_ERROR") || error.message.includes("request to https://generativelanguage.googleapis.com failed")) {
-             errorMessage = "Network error communicating with AI service.";
-             statusCode = 504; // Gateway Timeout
-        } else if (error.message.includes("API key not valid")) {
-             errorMessage = "AI Service Error: Invalid API Key.";
-             statusCode = 503; // Service Unavailable (config issue)
-        } else if (error.message.includes('Failed to save the summary')) {
-             errorMessage = error.message;
-             statusCode = 500; // Internal DB error
-        }
-        // Consider more specific error handling based on AI API responses if needed
-
-        res.status(statusCode).json({ message: errorMessage, details: error.message });
-    }
-});
-
+);
 
 /**
  * Route: POST /delete_text/:text_id

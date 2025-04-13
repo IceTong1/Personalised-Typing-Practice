@@ -13,7 +13,10 @@ const textController = require('./controllers/textController'); // Handles core 
 const categoryController = require('./controllers/categoryController'); // Handles category (folder) routes
 const practiceController = require('./controllers/practiceController'); // Handles practice session routes
 const profileController = require('./controllers/profileController'); // Handles profile routes
-const { router: storeRouter, storeItems } = require('./controllers/storeController'); // Import router and items
+const {
+    router: storeRouter,
+    storeItems,
+} = require('./controllers/storeController'); // Import router and items
 const mainController = require('./controllers/mainController'); // Handles general pages like manual
 const db = require('./models/db'); // Import db for owned items check
 
@@ -81,9 +84,9 @@ app.get('/store', requireLogin, (req, res) => {
         // Pass both the available items and the user's owned items
         res.render('store', { storeItems, ownedItems });
     } catch (error) {
-        console.error("Error loading store page:", error);
+        console.error('Error loading store page:', error);
         // Handle error appropriately, maybe render store with empty owned items or an error message
-        res.status(500).send("Error loading store page.");
+        res.status(500).send('Error loading store page.');
     }
 });
 app.use('/store', storeRouter); // Mount the store router (for POST /store/buy etc.)
@@ -102,7 +105,8 @@ app.use((err, req, res, next) => {
             success: false, // Indicate failure
             message: err.message || `Server Error (${statusCode})`,
             // Optionally include stack trace in development
-            error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+            error:
+                process.env.NODE_ENV === 'development' ? err.stack : undefined,
         });
     } else {
         // Attempt to render a dedicated HTML error page for browser requests
@@ -115,7 +119,9 @@ app.use((err, req, res, next) => {
                     status: statusCode,
                 });
             } else {
-                console.warn("Warning: 'views/error.ejs' not found. Sending plain text error.");
+                console.warn(
+                    "Warning: 'views/error.ejs' not found. Sending plain text error."
+                );
                 res.type('text/plain').send(`Server Error (${statusCode})`);
             }
         } catch (renderError) {

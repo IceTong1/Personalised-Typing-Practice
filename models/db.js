@@ -106,14 +106,15 @@ try {
     const hasCoins = userColumns.some((col) => col.name === 'coins');
 
     if (!hasCoins) {
-        db.exec(`ALTER TABLE users ADD COLUMN coins INTEGER NOT NULL DEFAULT 0;`);
+        db.exec(
+            `ALTER TABLE users ADD COLUMN coins INTEGER NOT NULL DEFAULT 0;`
+        );
         if (process.env.NODE_ENV === 'development')
             console.log("Successfully added 'coins' column to 'users' table.");
     }
 } catch (err) {
     console.error("Error checking/adding 'coins' column:", err);
 }
-
 
 if (process.env.NODE_ENV === 'development')
     console.log('Database tables checked/created successfully.');
@@ -205,7 +206,9 @@ function login(username, password) {
  * @returns {object|null} - User object { id, username, coins } or null if not found.
  */
 function get_user_details(user_id) {
-    const stmt = db.prepare('SELECT id, username, coins FROM users WHERE id = ?');
+    const stmt = db.prepare(
+        'SELECT id, username, coins FROM users WHERE id = ?'
+    );
     return stmt.get(user_id) || null;
 }
 
@@ -220,7 +223,9 @@ function increment_user_coins(user_id, amount = 1) {
     try {
         const info = stmt.run(amount, user_id);
         if (process.env.NODE_ENV === 'development' && info.changes > 0) {
-            console.log(`Incremented coins by ${amount} for user ID ${user_id}.`);
+            console.log(
+                `Incremented coins by ${amount} for user ID ${user_id}.`
+            );
         }
         return info.changes > 0;
     } catch (err) {
@@ -238,18 +243,29 @@ function increment_user_coins(user_id, amount = 1) {
 function decrement_user_coins(user_id, amount = 1) {
     // Ensure amount is positive
     if (amount <= 0) {
-        console.warn(`Attempted to decrement coins by non-positive amount (${amount}) for user ${user_id}.`);
+        console.warn(
+            `Attempted to decrement coins by non-positive amount (${amount}) for user ${user_id}.`
+        );
         return false;
     }
     // Use MAX(0, coins - ?) to prevent going below zero
     // Ensure the user has enough coins *before* attempting the update
-    const stmt = db.prepare('UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?');
+    const stmt = db.prepare(
+        'UPDATE users SET coins = coins - ? WHERE id = ? AND coins >= ?'
+    );
     try {
         const info = stmt.run(amount, user_id, amount); // Pass amount twice: once for SET, once for WHERE
         if (process.env.NODE_ENV === 'development' && info.changes > 0) {
-            console.log(`Decremented coins by ${amount} for user ID ${user_id}.`);
-        } else if (process.env.NODE_ENV === 'development' && info.changes === 0) {
-             console.log(`Attempted to decrement coins for user ID ${user_id}, but coins were already 0 or user not found.`);
+            console.log(
+                `Decremented coins by ${amount} for user ID ${user_id}.`
+            );
+        } else if (
+            process.env.NODE_ENV === 'development' &&
+            info.changes === 0
+        ) {
+            console.log(
+                `Attempted to decrement coins for user ID ${user_id}, but coins were already 0 or user not found.`
+            );
         }
         return info.changes > 0;
     } catch (err) {
@@ -476,7 +492,6 @@ const update_text_order = db.transaction((user_id, order) => {
     return true; // Indicate success
 });
 
-
 /**
  * Checks if a user already owns a specific item.
  * @param {number} user_id - The user's ID.
@@ -484,7 +499,9 @@ const update_text_order = db.transaction((user_id, order) => {
  * @returns {boolean} - True if the user owns the item, false otherwise.
  */
 function check_item_ownership(user_id, item_id) {
-    const stmt = db.prepare('SELECT 1 FROM user_owned_items WHERE user_id = ? AND item_id = ?');
+    const stmt = db.prepare(
+        'SELECT 1 FROM user_owned_items WHERE user_id = ? AND item_id = ?'
+    );
     const result = stmt.get(user_id, item_id);
     return !!result; // Returns true if a row is found, false otherwise
 }
@@ -504,7 +521,9 @@ function add_owned_item(user_id, item_id) {
 
         if (alreadyOwns) {
             if (process.env.NODE_ENV === 'development') {
-                console.log(`User ID ${user_id} already owns item '${item_id}'. No insert needed.`);
+                console.log(
+                    `User ID ${user_id} already owns item '${item_id}'. No insert needed.`
+                );
             }
             return true; // Indicate success (state is correct: user owns item)
         }
@@ -517,13 +536,17 @@ function add_owned_item(user_id, item_id) {
         const info = insertStmt.run(user_id, item_id, 1); // Provide all three values
 
         if (process.env.NODE_ENV === 'development') {
-            console.log(`Item '${item_id}' inserted for user ID ${user_id}. Changes: ${info.changes}`);
+            console.log(
+                `Item '${item_id}' inserted for user ID ${user_id}. Changes: ${info.changes}`
+            );
         }
 
         return info.changes > 0; // Return true if insert succeeded
-
     } catch (err) {
-        console.error(`Error in add_owned_item for user ID ${user_id}, item '${item_id}':`, err);
+        console.error(
+            `Error in add_owned_item for user ID ${user_id}, item '${item_id}':`,
+            err
+        );
         return false; // Indicate failure
     }
 }
@@ -534,13 +557,18 @@ function add_owned_item(user_id, item_id) {
  * @returns {Set<string>} - A Set containing the item_id strings owned by the user.
  */
 function get_owned_item_ids(user_id) {
-    const stmt = db.prepare('SELECT item_id FROM user_owned_items WHERE user_id = ?');
+    const stmt = db.prepare(
+        'SELECT item_id FROM user_owned_items WHERE user_id = ?'
+    );
     try {
         const rows = stmt.all(user_id);
         // Return a Set for efficient lookups (e.g., ownedItems.has('car'))
-        return new Set(rows.map(row => row.item_id));
+        return new Set(rows.map((row) => row.item_id));
     } catch (err) {
-        console.error(`Error fetching owned items for user ID ${user_id}:`, err);
+        console.error(
+            `Error fetching owned items for user ID ${user_id}:`,
+            err
+        );
         return new Set(); // Return empty set on error
     }
 }
@@ -556,24 +584,23 @@ function get_user_stats(user_id) {
 
     if (stats) {
         // Calculate average accuracy, handle division by zero
-        const average_accuracy = stats.accuracy_entries_count > 0
-            ? (stats.total_accuracy_points / stats.accuracy_entries_count)
-            : 0;
+        const average_accuracy =
+            stats.accuracy_entries_count > 0
+                ? stats.total_accuracy_points / stats.accuracy_entries_count
+                : 0;
         return {
             texts_practiced: stats.texts_practiced,
             total_practice_time_seconds: stats.total_practice_time_seconds,
-            average_accuracy: average_accuracy
-        };
-    } else {
-        // Return default stats if no record found
-        return {
-            texts_practiced: 0,
-            total_practice_time_seconds: 0,
-            average_accuracy: 0
+            average_accuracy,
         };
     }
+    // Return default stats if no record found
+    return {
+        texts_practiced: 0,
+        total_practice_time_seconds: 0,
+        average_accuracy: 0,
+    };
 }
-
 
 /**
  * Updates user time and accuracy statistics incrementally after completing a line/block.
@@ -587,17 +614,24 @@ function get_user_stats(user_id) {
 function update_user_stats(user_id, time_increment_seconds, line_accuracy) {
     // Ensure accuracy is a number and within valid range
     const numericAccuracy = Number(line_accuracy);
-    if (isNaN(numericAccuracy) || numericAccuracy < 0 || numericAccuracy > 100) {
-        console.error(`Invalid line_accuracy value provided for user ${user_id}: ${line_accuracy}`);
+    if (
+        Number.isNaN(numericAccuracy) ||
+        numericAccuracy < 0 ||
+        numericAccuracy > 100
+    ) {
+        console.error(
+            `Invalid line_accuracy value provided for user ${user_id}: ${line_accuracy}`
+        );
         return false;
     }
-     // Ensure time is a non-negative number
+    // Ensure time is a non-negative number
     const numericTime = Number(time_increment_seconds);
-     if (isNaN(numericTime) || numericTime < 0) {
-        console.error(`Invalid time_increment_seconds value provided for user ${user_id}: ${time_increment_seconds}`);
+    if (Number.isNaN(numericTime) || numericTime < 0) {
+        console.error(
+            `Invalid time_increment_seconds value provided for user ${user_id}: ${time_increment_seconds}`
+        );
         return false;
     }
-
 
     const stmt = db.prepare(`
         INSERT INTO user_stats (user_id, texts_practiced, total_practice_time_seconds, total_accuracy_points, accuracy_entries_count)
@@ -614,11 +648,16 @@ function update_user_stats(user_id, time_increment_seconds, line_accuracy) {
         // Pass user_id, roundedTimeIncrement, and numericAccuracy for both INSERT and potential UPDATE parts
         stmt.run(user_id, roundedTimeIncrement, numericAccuracy);
         if (process.env.NODE_ENV === 'development') {
-            console.log(`Incrementally updated stats for user ID ${user_id}: time +${roundedTimeIncrement}s (rounded from ${numericTime.toFixed(2)}s), accuracy ${numericAccuracy}%`);
+            console.log(
+                `Incrementally updated stats for user ID ${user_id}: time +${roundedTimeIncrement}s (rounded from ${numericTime.toFixed(2)}s), accuracy ${numericAccuracy}%`
+            );
         }
         return true;
     } catch (err) {
-        console.error(`Error incrementally updating stats for user ID ${user_id}:`, err);
+        console.error(
+            `Error incrementally updating stats for user ID ${user_id}:`,
+            err
+        );
         return false;
     }
 }
@@ -630,7 +669,7 @@ function update_user_stats(user_id, time_increment_seconds, line_accuracy) {
  * @returns {boolean} - True if successful, false otherwise.
  */
 function increment_texts_practiced(user_id) {
-     const stmt = db.prepare(`
+    const stmt = db.prepare(`
         INSERT INTO user_stats (user_id, texts_practiced, total_practice_time_seconds, total_accuracy_points, accuracy_entries_count)
         VALUES (?, 1, 0, 0, 0) -- Initial values if no record exists
         ON CONFLICT(user_id) DO UPDATE SET
@@ -638,16 +677,18 @@ function increment_texts_practiced(user_id) {
     `);
     try {
         stmt.run(user_id);
-         if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development') {
             console.log(`Incremented texts_practiced for user ID ${user_id}`);
         }
         return true;
     } catch (err) {
-         console.error(`Error incrementing texts_practiced for user ID ${user_id}:`, err);
+        console.error(
+            `Error incrementing texts_practiced for user ID ${user_id}:`,
+            err
+        );
         return false;
     }
 }
-
 
 // --- Exports ---
 // Make the database functions available for other modules (like controllers) to import
@@ -668,9 +709,9 @@ module.exports = {
     decrement_user_coins,
     check_item_ownership,
     add_owned_item,
-    get_owned_item_ids,   // Export the new function
-    get_user_stats,       // Export the stats getter
-    update_user_stats,    // Export the incremental stats updater
+    get_owned_item_ids, // Export the new function
+    get_user_stats, // Export the stats getter
+    update_user_stats, // Export the incremental stats updater
     increment_texts_practiced, // Export the text count incrementer
     // --- Category Functions ---
 

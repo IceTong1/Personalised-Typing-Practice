@@ -250,7 +250,8 @@ router.post('/:category_id/delete', requireLogin, (req, res) => {
             );
             res.redirect(
                 buildRedirectUrl('/texts', {
-                    message: 'Failed to delete folder. It might have already been removed or an error occurred.',
+                    message:
+                        'Failed to delete folder. It might have already been removed or an error occurred.',
                     category_id: parentId, // Redirect to parent
                 })
             );
@@ -269,7 +270,6 @@ router.post('/:category_id/delete', requireLogin, (req, res) => {
         );
     }
 });
-
 
 // --- Export Router ---
 module.exports = router;

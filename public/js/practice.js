@@ -18,6 +18,7 @@ import createTimerManager from './timerManager.js';
 import createInputHandler from './inputHandler.js';
 import createPracticeInitializer from './practiceInitializer.js'; // Import the new initializer
 
+let inputHandler = null; // Declare at module scope
 // This script runs after the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -35,7 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveButton = document.getElementById('save-button');
     const skipLineButton = document.getElementById('skip-line-button');
     const linesToShowSelect = document.getElementById('lines-to-show-select'); // Added lines to show select reference
-    const toggleFullTextButton = document.getElementById('toggle-full-text-button'); // Added toggle full text button reference
+    const toggleFullTextButton = document.getElementById(
+        'toggle-full-text-button'
+    ); // Added toggle full text button reference
     const fullTextContainer = document.getElementById('full-text-container'); // Added full text container reference
     const fullTextDisplay = document.getElementById('full-text-display'); // Added full text display reference
     const resultsContainer = document.getElementById('results');
@@ -50,23 +53,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initial Check ---
     if (
-        !lineContainer || !lineDisplay || !typingInputArea || !typingInputContent ||
-        !typingCursor || !resetButton || !saveButton || !completionElement ||
-        !resultsContainer || !wpmElement || !accuracyElement || !errorsElement ||
-        !timerElement || !skipLineButton || !toggleFullTextButton || // Added checks for full text elements
-        !fullTextContainer || !fullTextDisplay || !linesToShowSelect // Added check for lines select
+        !lineContainer ||
+        !lineDisplay ||
+        !typingInputArea ||
+        !typingInputContent ||
+        !typingCursor ||
+        !resetButton ||
+        !saveButton ||
+        !completionElement ||
+        !resultsContainer ||
+        !wpmElement ||
+        !accuracyElement ||
+        !errorsElement ||
+        !timerElement ||
+        !skipLineButton ||
+        !toggleFullTextButton || // Added checks for full text elements
+        !fullTextContainer ||
+        !fullTextDisplay ||
+        !linesToShowSelect // Added check for lines select
     ) {
-        console.error('Required elements not found for practice script. Aborting.');
+        console.error(
+            'Required elements not found for practice script. Aborting.'
+        );
         return;
     }
 
     // --- Constants from DOM ---
     const fullText = lineContainer.dataset.textContent || '';
     const textId = lineContainer.dataset.textId || null;
-    const initialProgressIndex = parseInt(lineContainer.dataset.progressIndex || '0', 10);
+    const initialProgressIndex = parseInt(
+        lineContainer.dataset.progressIndex || '0',
+        10
+    );
 
     // --- Practice State Object (Shared between modules) ---
-    let practiceState = {
+    const practiceState = {
         // Input state (managed by inputHandler)
         hiddenInput: null,
         currentInputValue: '',
@@ -92,7 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initialize Managers ---
     // Timer Manager needs state, timerElement, wpmElement
-    const timerManager = createTimerManager(practiceState, timerElement, wpmElement);
+    const timerManager = createTimerManager(
+        practiceState,
+        timerElement,
+        wpmElement
+    );
 
     // --- Core Rendering & Logic (Shared/Remaining Functions) ---
     // These functions are passed as dependencies to other modules
@@ -102,34 +127,45 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {number} lineIndex - The index of the line to render.
      */
     function renderLine(startIndex) {
-        console.log(`[Debug] renderLine called with start index: ${startIndex}, lines to show: ${practiceState.linesToShow}`);
+        console.log(
+            `[Debug] renderLine called with start index: ${startIndex}, lines to show: ${practiceState.linesToShow}`
+        );
         lineDisplay.innerHTML = ''; // Clear previous content
         practiceState.currentCharSpans = []; // Reset spans for the new block
 
         if (startIndex >= practiceState.lines.length) {
-            lineDisplay.innerHTML = '<span class="correct">Text Complete!</span>';
+            lineDisplay.innerHTML =
+                '<span class="correct">Text Complete!</span>';
             timerManager.stop();
             if (resultsContainer) resultsContainer.classList.add('completed');
             // Ensure index reflects full completion if somehow overshot
-            practiceState.currentOverallCharIndex = practiceState.totalDisplayLength;
+            practiceState.currentOverallCharIndex =
+                practiceState.totalDisplayLength;
             updateStats(); // Final stats update before sending
             console.log('Text completed!');
 
             // --- Send final text completion signal ---
             // Stats are now sent incrementally per line
             if (textId) {
-                 console.log(`Sending text completion signal: textId=${textId}`);
-                 sendTextCompletionSignal(textId); // Send signal to increment texts_practiced
+                console.log(`Sending text completion signal: textId=${textId}`);
+                sendTextCompletionSignal(textId); // Send signal to increment texts_practiced
             } else {
-                 console.warn("Cannot send text completion signal: Text ID is missing.");
+                console.warn(
+                    'Cannot send text completion signal: Text ID is missing.'
+                );
             }
             // --- End send final stats ---
 
             return;
         }
 
-        const endIndex = Math.min(startIndex + practiceState.linesToShow, practiceState.lines.length);
-        console.log(`[Debug] Rendering lines from ${startIndex} to ${endIndex - 1}`);
+        const endIndex = Math.min(
+            startIndex + practiceState.linesToShow,
+            practiceState.lines.length
+        );
+        console.log(
+            `[Debug] Rendering lines from ${startIndex} to ${endIndex - 1}`
+        );
 
         for (let i = startIndex; i < endIndex; i++) {
             const lineText = practiceState.lines[i];
@@ -161,23 +197,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reset visual input for the new block
         renderCustomInput('', typingInputContent);
-        updateCursorPosition(typingCursor, typingInputArea, typingInputContent, practiceState.isCustomInputFocused);
+        updateCursorPosition(
+            typingCursor,
+            typingInputArea,
+            typingInputContent,
+            practiceState.isCustomInputFocused
+        );
 
-        // Ensure input handler is focused for the new block
-        if (inputHandler) { // Check if inputHandler is initialized
-             inputHandler.focus();
-        } else {
-            // This might happen during initial setup before inputHandler is fully created by initializer
-            console.warn("renderLine called before inputHandler fully initialized.");
-        }
+        // Focus logic removed from renderLine
     }
 
     /**
      * Updates all displayed statistics. Called by initializer and inputHandler.
      */
     function updateStats() {
-        wpmElement.textContent = calculateWPM(practiceState.totalTypedChars, practiceState.timeElapsed);
-        accuracyElement.textContent = calculateAccuracy(practiceState.totalTypedEntries, practiceState.totalErrors);
+        wpmElement.textContent = calculateWPM(
+            practiceState.totalTypedChars,
+            practiceState.timeElapsed
+        );
+        accuracyElement.textContent = calculateAccuracy(
+            practiceState.totalTypedEntries,
+            practiceState.totalErrors
+        );
         errorsElement.textContent = practiceState.totalErrors;
         completionElement.textContent = calculateCompletionPercentage(
             practiceState.currentOverallCharIndex,
@@ -186,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-     /**
+    /**
      * Calculates the starting overall index for a given display line index.
      * Needed by inputHandler and initializer.
      * @param {number} lineIndex - The index of the display line.
@@ -196,17 +237,23 @@ document.addEventListener('DOMContentLoaded', () => {
         let startIndex = 0;
         // Ensure lines array exists and has content before iterating
         if (practiceState.lines && practiceState.lines.length > 0) {
-            for (let i = 0; i < lineIndex && i < practiceState.lines.length; i++) {
-                 // Add length of the line + 1 for the separator
-                 // Check if lines[i] is a string. If not, treat its length as 0.
-                 const currentLine = practiceState.lines[i];
-                 if (typeof currentLine === 'string') {
+            for (
+                let i = 0;
+                i < lineIndex && i < practiceState.lines.length;
+                i++
+            ) {
+                // Add length of the line + 1 for the separator
+                // Check if lines[i] is a string. If not, treat its length as 0.
+                const currentLine = practiceState.lines[i];
+                if (typeof currentLine === 'string') {
                     startIndex += currentLine.length + 1; // Add length + 1 for newline
-                 } else {
+                } else {
                     // Even if line data is invalid, assume a newline separator existed
-                    console.warn(`Invalid line data at index ${i} in calculateStartIndexForLine, treating length as 0.`);
+                    console.warn(
+                        `Invalid line data at index ${i} in calculateStartIndexForLine, treating length as 0.`
+                    );
                     startIndex += 1; // Still account for the newline separator
-                 }
+                }
             }
         }
         return startIndex;
@@ -214,7 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initialize Input Handler ---
     // Needs state, DOM elements, sounds, timerManager, and callback functions
-    const inputHandler = createInputHandler({
+    inputHandler = createInputHandler({
+        // Assign to module-scoped variable
         practiceState,
         typingInputArea,
         typingInputContent,
@@ -225,12 +273,12 @@ document.addEventListener('DOMContentLoaded', () => {
         timerManager,
         renderLine,
         updateStats,
-        calculateStartIndexForLine
+        calculateStartIndexForLine,
     });
 
     // --- Initialize Practice Initializer ---
     // Needs state, constants, DOM elements, and other managers/handlers
-     const practiceInitializer = createPracticeInitializer({
+    const practiceInitializer = createPracticeInitializer({
         practiceState,
         fullText,
         initialProgressIndex,
@@ -242,9 +290,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderLine,
         updateStats,
         calculateStartIndexForLine,
-        linesToShowSelect // Pass the select element - Already present from previous step
+        linesToShowSelect, // Pass the select element - Already present from previous step
     });
-
 
     // --- Event Listeners ---
     resetButton.addEventListener('click', practiceInitializer.reset); // Use initializer method
@@ -252,7 +299,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (saveButton) {
         saveButton.addEventListener('click', () => {
             if (textId) {
-                saveProgressToServer(textId, practiceState.currentOverallCharIndex, saveButton);
+                saveProgressToServer(
+                    textId,
+                    practiceState.currentOverallCharIndex,
+                    saveButton
+                );
             } else {
                 console.warn('Cannot save progress: Text ID is missing.');
                 alert('Cannot save progress: Text ID not found.');
@@ -269,16 +320,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveAndProfileLink.textContent = 'Saving...';
                 saveAndProfileLink.style.pointerEvents = 'none';
                 try {
-                    await saveProgressToServer(textId, practiceState.currentOverallCharIndex, null);
+                    await saveProgressToServer(
+                        textId,
+                        practiceState.currentOverallCharIndex,
+                        null
+                    );
                     console.log('Save attempt finished.');
                 } catch (error) {
-                    console.error('Unexpected error during saveProgressToServer call:', error);
+                    console.error(
+                        'Unexpected error during saveProgressToServer call:',
+                        error
+                    );
                 } finally {
                     console.log('Redirecting to profile...');
                     window.location.href = saveAndProfileLink.href;
                 }
             } else {
-                console.warn('Cannot save progress: Text ID is missing. Navigating directly.');
+                console.warn(
+                    'Cannot save progress: Text ID is missing. Navigating directly.'
+                );
                 window.location.href = saveAndProfileLink.href;
             }
         });
@@ -290,10 +350,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (skipLineButton) {
         skipLineButton.addEventListener('click', () => {
             console.log('Skip Line button clicked.');
-            const currentBlockStartIndex = practiceState.currentDisplayLineIndex;
+            const currentBlockStartIndex =
+                practiceState.currentDisplayLineIndex;
             // Use the current linesToShow from state
-            const linesInCurrentBlock = Math.min(practiceState.linesToShow, practiceState.lines.length - currentBlockStartIndex);
-            const nextBlockStartIndex = currentBlockStartIndex + linesInCurrentBlock;
+            const linesInCurrentBlock = Math.min(
+                practiceState.linesToShow,
+                practiceState.lines.length - currentBlockStartIndex
+            );
+            const nextBlockStartIndex =
+                currentBlockStartIndex + linesInCurrentBlock;
 
             // Check if there's a next block to skip to
             if (nextBlockStartIndex < practiceState.lines.length) {
@@ -301,15 +366,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Move state to the start of the next block
                 practiceState.currentDisplayLineIndex = nextBlockStartIndex;
-                practiceState.currentOverallCharIndex = calculateStartIndexForLine(practiceState.currentDisplayLineIndex);
+                practiceState.currentOverallCharIndex =
+                    calculateStartIndexForLine(
+                        practiceState.currentDisplayLineIndex
+                    );
 
                 // Render the new block (this also resets input and focuses)
                 renderLine(practiceState.currentDisplayLineIndex);
+                if (inputHandler) inputHandler.focus(); // Focus after rendering
 
                 // Update stats (completion will change)
                 updateStats();
 
-                console.log(`Skipped to block starting at line index: ${practiceState.currentDisplayLineIndex}, overall index: ${practiceState.currentOverallCharIndex}`);
+                console.log(
+                    `Skipped to block starting at line index: ${practiceState.currentDisplayLineIndex}, overall index: ${practiceState.currentOverallCharIndex}`
+                );
             } else {
                 console.log('Already on the last block, cannot skip.');
                 // Optionally disable the button here if needed
@@ -322,24 +393,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Toggle Full Text Button Listener
     if (toggleFullTextButton && fullTextContainer && fullTextDisplay) {
         toggleFullTextButton.addEventListener('click', () => {
-            const isToggled = toggleFullTextButton.getAttribute('data-toggled') === 'true';
+            const isToggled =
+                toggleFullTextButton.getAttribute('data-toggled') === 'true';
             if (!isToggled) {
                 // Show full text
                 fullTextDisplay.textContent = fullText; // Use the fullText constant from line 58
                 fullTextContainer.style.display = 'block';
-                toggleFullTextButton.innerHTML = '<i class="fas fa-eye-slash me-2"></i>Hide Full Text';
+                toggleFullTextButton.innerHTML =
+                    '<i class="fas fa-eye-slash me-2"></i>Hide Full Text';
                 toggleFullTextButton.setAttribute('data-toggled', 'true');
                 console.log('Showing full text.');
             } else {
                 // Hide full text
                 fullTextContainer.style.display = 'none';
-                toggleFullTextButton.innerHTML = '<i class="fas fa-eye me-2"></i>Show Full Text';
+                toggleFullTextButton.innerHTML =
+                    '<i class="fas fa-eye me-2"></i>Show Full Text';
                 toggleFullTextButton.setAttribute('data-toggled', 'false');
                 console.log('Hiding full text.');
             }
         });
     } else {
-        console.warn('Toggle Full Text button or container/display elements not found.');
+        console.warn(
+            'Toggle Full Text button or container/display elements not found.'
+        );
     }
 
     // --- Lines to Show Dropdown Listener ---
@@ -357,8 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
             practiceInitializer.reset(false);
 
             // Find where the saved index falls in the *new* line layout
-            const { lineIndex: newStartIndex, charOffset: newOffset } =
-                getDisplayLineAndOffset(savedIndex, practiceState.lines);
+            const {
+                lineIndex:
+                    newStartIndex /* , charOffset: newOffset - Removed unused */,
+            } = getDisplayLineAndOffset(savedIndex, practiceState.lines);
 
             // Update state to reflect the position within the new layout
             practiceState.currentDisplayLineIndex = newStartIndex;
@@ -370,7 +448,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Update stats display
             updateStats();
 
-            console.log(`Lines to show set to ${newLinesToShow}. Restored position to overall index: ${savedIndex} (New Start Line: ${newStartIndex})`);
+            console.log(
+                `Lines to show set to ${newLinesToShow}. Restored position to overall index: ${savedIndex} (New Start Line: ${newStartIndex})`
+            );
 
             // Ensure focus is maintained
             inputHandler.focus();
@@ -412,7 +492,9 @@ document.addEventListener('DOMContentLoaded', () => {
         practiceState.currentOverallCharIndex = indexBeforeResize; // Restore exact index
         renderLine(practiceState.currentDisplayLineIndex); // Render block starting at newLine
 
-        console.log(`Restored position to overall index: ${practiceState.currentOverallCharIndex} (New Start Line: ${newLine}, Offset: ${newOffset})`);
+        console.log(
+            `Restored position to overall index: ${practiceState.currentOverallCharIndex} (New Start Line: ${newLine}, Offset: ${newOffset})`
+        );
         updateStats();
         inputHandler.focus(); // Ensure focus after resize adjustments
     }, 250);
@@ -421,5 +503,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Initial Setup ---
     practiceInitializer.resetFromSaved(); // Initialize the practice area using the initializer
-
 }); // End DOMContentLoaded

@@ -24,11 +24,12 @@ function requireLogin(req, res, next) {
     // Check if the client accepts JSON
     if (req.accepts('json')) {
         // Send JSON error for API requests
-        return res.status(401).json({ message: 'Authentication required. Please log in.' });
-    } else {
-        // Redirect browser requests to the login page
-        return res.redirect('/login');
+        return res
+            .status(401)
+            .json({ message: 'Authentication required. Please log in.' });
     }
+    // Redirect browser requests to the login page
+    return res.redirect('/login');
 }
 
 /**
@@ -46,14 +47,17 @@ function requireOwnership(req, res, next) {
     // Should already be caught by requireLogin, but good for defense
     if (!userId) {
         if (process.env.NODE_ENV === 'development') {
-            console.log(`Ownership check failed: No user ID in session for text ID ${textId}`);
+            console.log(
+                `Ownership check failed: No user ID in session for text ID ${textId}`
+            );
         }
         // Check if the client accepts JSON
         if (req.accepts('json')) {
-            return res.status(401).json({ message: 'Authentication required. Please log in.' });
-        } else {
-            return res.redirect('/login?message=Please log in');
+            return res
+                .status(401)
+                .json({ message: 'Authentication required. Please log in.' });
         }
+        return res.redirect('/login?message=Please log in');
     }
 
     try {
@@ -61,26 +65,34 @@ function requireOwnership(req, res, next) {
 
         if (!text) {
             if (process.env.NODE_ENV === 'development') {
-                console.log(`Ownership check failed: Text not found for ID ${textId}`);
+                console.log(
+                    `Ownership check failed: Text not found for ID ${textId}`
+                );
             }
             if (req.accepts('json')) {
-                 return res.status(404).json({ message: 'Text not found.' });
-            } else {
-                // Redirect browser requests
-                return res.status(404).redirect('/profile?message=Text not found');
+                return res.status(404).json({ message: 'Text not found.' });
             }
+            // Redirect browser requests
+            return res.status(404).redirect('/profile?message=Text not found');
         }
 
         if (text.user_id !== userId) {
             if (process.env.NODE_ENV === 'development') {
-                console.log(`Ownership check failed: User ID ${userId} does not own text ID ${textId} (Owner: ${text.user_id})`);
+                console.log(
+                    `Ownership check failed: User ID ${userId} does not own text ID ${textId} (Owner: ${text.user_id})`
+                );
             }
-             if (req.accepts('json')) {
-                 return res.status(403).json({ message: 'Permission denied. You do not own this text.' });
-            } else {
-                // Redirect browser requests
-                return res.status(403).redirect('/profile?message=You do not have permission to access this text');
+            if (req.accepts('json')) {
+                return res.status(403).json({
+                    message: 'Permission denied. You do not own this text.',
+                });
             }
+            // Redirect browser requests
+            return res
+                .status(403)
+                .redirect(
+                    '/profile?message=You do not have permission to access this text'
+                );
         }
 
         // Attach text to request object for convenience in subsequent handlers
@@ -97,11 +109,17 @@ function requireOwnership(req, res, next) {
             error
         );
         if (req.accepts('json')) {
-            return res.status(500).json({ message: 'An internal error occurred while verifying text ownership.' });
-        } else {
-            // Redirect browser requests
-            return res.status(500).redirect('/profile?message=An error occurred while verifying text ownership');
+            return res.status(500).json({
+                message:
+                    'An internal error occurred while verifying text ownership.',
+            });
         }
+        // Redirect browser requests
+        return res
+            .status(500)
+            .redirect(
+                '/profile?message=An error occurred while verifying text ownership'
+            );
     }
 }
 
@@ -138,13 +156,18 @@ function loadUserData(req, res, next) {
                 }
             } else {
                 // User ID in session but not found in DB (edge case, maybe deleted?)
-                console.warn(`User ID ${req.session.user.id} found in session but not in DB.`);
+                console.warn(
+                    `User ID ${req.session.user.id} found in session but not in DB.`
+                );
                 // Clear the invalid session user data
                 delete req.session.user;
                 res.locals.currentUser = null;
             }
         } catch (error) {
-            console.error(`Error fetching user details for user ID ${req.session.user.id}:`, error);
+            console.error(
+                `Error fetching user details for user ID ${req.session.user.id}:`,
+                error
+            );
             res.locals.currentUser = null; // Ensure it's null on error
         }
     } else {
@@ -153,7 +176,6 @@ function loadUserData(req, res, next) {
     }
     next(); // Always call next()
 }
-
 
 module.exports = {
     requireLogin,

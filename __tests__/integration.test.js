@@ -76,10 +76,18 @@ describe('Integration Tests', () => {
         db.get_user_stats.mockImplementation((userId) => {
             // Return default stats for any valid user ID during tests
             if (userId) {
-                 return { texts_practiced: 0, total_practice_time_seconds: 0, average_accuracy: 0 };
+                return {
+                    texts_practiced: 0,
+                    total_practice_time_seconds: 0,
+                    average_accuracy: 0,
+                };
             }
             // Or handle specific user IDs if needed for certain tests
-            return { texts_practiced: 0, total_practice_time_seconds: 0, average_accuracy: 0 };
+            return {
+                texts_practiced: 0,
+                total_practice_time_seconds: 0,
+                average_accuracy: 0,
+            };
         });
     });
 
@@ -225,7 +233,9 @@ describe('Integration Tests', () => {
             const profileRes = await agent.get('/profile');
             // Updated: Expect 401 Unauthorized for JSON-accepting requests after logout
             expect(profileRes.statusCode).toEqual(401);
-            expect(profileRes.body.message).toContain('Authentication required'); // Check JSON error message
+            expect(profileRes.body.message).toContain(
+                'Authentication required'
+            ); // Check JSON error message
         });
     });
 
@@ -715,7 +725,8 @@ describe('Integration Tests', () => {
         });
 
         // --- API Routes --- Moved Inside ---
-        describe('POST /practice/api/progress', () => { // UPDATED ROUTE
+        describe('POST /practice/api/progress', () => {
+            // UPDATED ROUTE
             it('should save progress and return success', async () => {
                 db.save_progress.mockReturnValue(true); // Mock successful save
 
@@ -838,7 +849,7 @@ describe('Integration Tests', () => {
                 db.delete_category.mockReturnValue(true);
                 db.get_category.mockReturnValue({
                     id: 10,
-                    parent_category_id: null
+                    parent_category_id: null,
                 });
 
                 const res = await agent.post('/categories/10/delete');
@@ -856,7 +867,7 @@ describe('Integration Tests', () => {
                 db.is_category_empty.mockReturnValue(false);
                 db.get_category.mockReturnValue({
                     id: 11,
-                    parent_category_id: 5
+                    parent_category_id: 5,
                 });
 
                 const res = await agent.post('/categories/11/delete');
@@ -875,7 +886,7 @@ describe('Integration Tests', () => {
                 db.delete_category.mockReturnValue(false);
                 db.get_category.mockReturnValue({
                     id: 12,
-                    parent_category_id: 3
+                    parent_category_id: 3,
                 });
 
                 const res = await agent.post('/categories/12/delete');
