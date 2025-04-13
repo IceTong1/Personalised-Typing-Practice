@@ -218,10 +218,13 @@ function createInputHandler(dependencies) {
             } else {
                 // Not the last line, just update overall index and reset line timer
                 practiceState.currentOverallCharIndex = calculateStartIndexForLine(absoluteLineIndex + 1);
-                console.log(`Line complete, but not end of block. New overall index: ${practiceState.currentOverallCharIndex}. Resetting line timer.`);
+                // console.log(`Line complete, but not end of block. New overall index: ${practiceState.currentOverallCharIndex}. Resetting line timer.`); // Restore original log if needed, removing debug logs
+
                 lineStartTime = performance.now(); // Start timer for the next line within the block
                 // Update stats (completion % changes)
                 updateStats();
+                // Focus is handled by renderLine when block changes, or should persist otherwise.
+                // Removed explicit focus() call here.
                 return false; // Block not completed yet
             }
         }
@@ -261,12 +264,8 @@ function createInputHandler(dependencies) {
 
                 if (practiceState.currentOverallCharIndex >= lineStartIndexAbsolute &&
                     practiceState.currentOverallCharIndex <= lineEndIndexAbsolute) {
-
-                     if (practiceState.currentOverallCharIndex === lineEndIndexAbsolute && inputLength === 0 && i < linesInBlock - 1) {
-                       cumulativeLengthInBlock += lineText.length + 1;
-                       continue;
-                    }
-
+                    // Removed special case that skipped empty lines when index was at the end of the previous line.
+                    // The main condition correctly identifies the empty line when index is at its start/end.
                     currentLineAbsoluteIndex = lineIdx;
                     currentLineIndexInBlock = i;
                     lengthOfCurrentLine = lineText.length;
@@ -280,14 +279,17 @@ function createInputHandler(dependencies) {
              const lineTextCorrect = currentInput === textForCurrentLine;
 
             // --- Trigger Completion Logic ---
-            // Allow Enter if line is correct OR if line is empty and input is empty
-            if ((lineTextCorrect && textForCurrentLine.length > 0) || (textForCurrentLine.length === 0 && currentInput.length === 0)) {
-                 console.log("Enter pressed on correct line, triggering completion.");
+            // Allow Enter if line is correct OR if the target line is effectively empty (empty or only whitespace) and the input is empty.
+            const isTargetLineEffectivelyEmpty = textForCurrentLine.trim().length === 0;
+            const isInputEmpty = currentInput.length === 0;
+
+            if (lineTextCorrect || (isTargetLineEffectivelyEmpty && isInputEmpty)) {
+                 console.log("Enter pressed on correct or effectively empty line, triggering completion.");
                  // Call the completion handler directly
                  // Note: This bypasses the handleHiddenInput's usual flow for this specific case.
                  const blockCompleted = checkAndHandleIndividualLineCompletion(
-                     true, // Force completion check since Enter was pressed on correct line
-                     textForCurrentLine,
+                     true, // Force completion check since Enter was pressed on a valid line state
+                     textForCurrentLine, // Pass original text for stats etc.
                      currentLineIndexInBlock,
                      linesInBlock
                  );
@@ -314,6 +316,7 @@ function createInputHandler(dependencies) {
     }
 
     function handleHiddenInput() {
+        // console.log("[Debug HandleInput] Fired."); // Remove log
         if (!practiceState.hiddenInput) return;
         const previousInputValue = practiceState.currentInputValue;
         practiceState.currentInputValue = practiceState.hiddenInput.value;
@@ -360,12 +363,8 @@ function createInputHandler(dependencies) {
             if (practiceState.currentOverallCharIndex >= lineStartIndexAbsolute &&
                 practiceState.currentOverallCharIndex <= lineEndIndexAbsolute) { // Use <= to catch start of line case
 
-                // Special case: If index is exactly at the end, and input is empty, target the *next* line if available
-                if (practiceState.currentOverallCharIndex === lineEndIndexAbsolute && inputLength === 0 && i < linesInBlock - 1) {
-                   // Skip to next iteration, the next line's check will handle it
-                   cumulativeLengthInBlock += lineText.length + 1; // Account for newline
-                   continue;
-                }
+                // Removed special case that skipped empty lines when index was at the end of the previous line.
+                // The main condition correctly identifies the empty line when index is at its start/end.
 
                 currentLineAbsoluteIndex = lineIdx;
                 currentLineIndexInBlock = i;
@@ -382,6 +381,9 @@ function createInputHandler(dependencies) {
             // Add length of this line + newline (if applicable) for next iteration's span index calculation
             cumulativeLengthInBlock += lineText.length + (i < linesInBlock - 1 ? 1 : 0);
         }
+
+        // --- Diagnostic Logging Removed ---
+
 
         // Handle case where text is complete or line wasn't found (shouldn't happen)
         if (currentLineAbsoluteIndex === -1 || currentLineAbsoluteIndex >= practiceState.lines.length) {

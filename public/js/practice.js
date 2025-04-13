@@ -198,11 +198,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (practiceState.lines && practiceState.lines.length > 0) {
             for (let i = 0; i < lineIndex && i < practiceState.lines.length; i++) {
                  // Add length of the line + 1 for the separator
-                 // Check if lines[i] exists and has a length property
-                 if (practiceState.lines[i] && typeof practiceState.lines[i].length === 'number') {
-                    startIndex += practiceState.lines[i].length + 1;
+                 // Check if lines[i] is a string. If not, treat its length as 0.
+                 const currentLine = practiceState.lines[i];
+                 if (typeof currentLine === 'string') {
+                    startIndex += currentLine.length + 1; // Add length + 1 for newline
                  } else {
-                    console.warn(`Invalid line data at index ${i} in calculateStartIndexForLine`);
+                    // Even if line data is invalid, assume a newline separator existed
+                    console.warn(`Invalid line data at index ${i} in calculateStartIndexForLine, treating length as 0.`);
+                    startIndex += 1; // Still account for the newline separator
                  }
             }
         }
