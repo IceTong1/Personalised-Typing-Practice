@@ -25,34 +25,15 @@ router.get('/:text_id', requireLogin, requireOwnership, (req, res) => {
     const textId = req.params.text_id;
     const userId = req.session.user.id;
 
-    try {
-        // Fetch text data *including* user progress
-        const textData = db.get_text(textId, userId); // Use original get_text
+    // Fetch text data *including* user progress
+    const textData = db.get_text(textId, userId); // Use original get_text
 
-        if (!textData) {
-            // This case should ideally be caught by requireOwnership, but check again.
-            console.error(
-                `Text not found in GET /practice/:text_id even after ownership check? ID: ${textId}`
-            );
-            return res.redirect('/texts?message=Text not found.'); // Redirect to the texts page
-        }
-
-        if (process.env.NODE_ENV === 'development')
-            console.log(
-                `Rendering practice page for text ID: ${textId}, User ID: ${userId}, Progress: ${textData.progress_index}`
-            );
-        // Render the 'practice.ejs' view, passing user and the full text data (including progress)
-        res.render('practice', {
-            user: req.session.user,
-            text: textData, // Pass the object containing id, title, content, progress_index
-        });
-    } catch (error) {
-        console.error(
-            `Error fetching text/progress for practice page (Text ID: ${textId}, User ID: ${userId}):`,
-            error
-        );
-        res.redirect('/texts?message=Error loading practice text.'); // Redirect to the texts page
-    }
+    // Render the 'practice.ejs' view, passing user and the full text data (including progress)
+    res.render('practice', {
+        user: req.session.user,
+        text: textData, // Pass the object containing id, title, content, progress_index
+    });
+     
 });
 
 /**
@@ -66,66 +47,27 @@ router.post('/api/progress', requireLogin, (req, res) => {
     const { text_id, progress_index } = req.body;
     const user_id = req.session.user.id;
 
-    // Basic validation
-    if (text_id === undefined || progress_index === undefined) {
-        console.error(
-            `Save progress failed: Missing text_id or progress_index. Body:`,
-            req.body
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Missing required data.' });
-    }
-
+    
     // Convert to numbers just in case they came as strings
     const textIdNum = parseInt(text_id, 10); // Already has radix 10
     const progressIndexNum = parseInt(progress_index, 10); // Already has radix 10
 
-    if (
-        Number.isNaN(textIdNum) ||
-        Number.isNaN(progressIndexNum) ||
-        progressIndexNum < 0
-    ) {
+    const success = db.save_progress(user_id, textIdNum, progressIndexNum);
+
+    if (success) {
+        // console.log(`Progress saved via API: User ${user_id}, Text ${textIdNum}, Index ${progressIndexNum}`); // Optional logging
+        res.status(200).json({ success: true });
+    } else {
         console.error(
-            `Save progress failed: Invalid data types or negative index. text_id: ${text_id}, progress_index: ${progress_index}`
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Invalid data.' });
-    }
-
-    try {
-        // TODO: Optional - Add a check here to verify the user actually owns textIdNum before saving progress?
-        // This adds DB overhead but increases security if API is exposed differently.
-        // For now, assume requireLogin is sufficient protection as only logged-in users can reach this.
-
-        const success = db.save_progress(user_id, textIdNum, progressIndexNum);
-
-        if (success) {
-            // console.log(`Progress saved via API: User ${user_id}, Text ${textIdNum}, Index ${progressIndexNum}`); // Optional logging
-            res.status(200).json({ success: true });
-        } else {
-            console.error(
-                `Save progress DB error: User ${user_id}, Text ${textIdNum}`
-            );
-            res.status(500).json({
-                success: false,
-                message: 'Database error saving progress.',
-            });
-
-            // This block was incorrectly placed here by the previous diff. Removing it.
-        }
-    } catch (error) {
-        console.error(
-            `Unexpected error saving progress: User ${user_id}, Text ${textIdNum}:`,
-            error
+            `Save progress DB error: User ${user_id}, Text ${textIdNum}`
         );
         res.status(500).json({
             success: false,
-            message: 'Server error saving progress.',
+            message: 'Database error saving progress.',
         });
-    }
-});
+        }
+    }    
+);
 
 /**
  * API Route: POST /practice/line-complete
@@ -252,48 +194,30 @@ router.post('/penalty', requireLogin, (req, res) => {
     // Corrected path
     const userId = req.session.user.id;
     const penaltyAmount = 1; // Decrement by 1 coin per 10 errors
+    const success = db.decrement_user_coins(userId, penaltyAmount);
 
-    console.log(
-        `--- Reached /practice/penalty endpoint for user ${userId} ---`
-    ); // Updated log message
-
-    try {
-        const success = db.decrement_user_coins(userId, penaltyAmount);
-
-        if (success) {
-            // Fetch the updated coin count to send back
-            const userDetails = db.get_user_details(userId);
-            const newCoinCount = userDetails ? userDetails.coins : null;
-
-            if (process.env.NODE_ENV === 'development') {
-                console.log(
-                    `API (/penalty): Applied penalty of ${penaltyAmount} coin(s) to user ${userId}. New total: ${newCoinCount ?? 'N/A'}`
-                ); // Updated log message
-            }
-            res.status(200).json({ success: true, newCoinCount });
-        } else {
-            // Decrement failed - likely because coins were already 0
-            if (process.env.NODE_ENV === 'development') {
-                console.log(
-                    `API (/penalty): Failed to apply penalty to user ${userId} (likely coins already 0).`
-                ); // Updated log message
-            }
-            // Decrement failed, assume coins are 0.
-            const currentCoinCount = 0;
-            // Send 400 Bad Request
-            res.status(400).json({
-                success: false,
-                message: 'Cannot apply penalty, coins already zero.',
-                currentCoinCount,
-            });
+    if (success) {
+        // Fetch the updated coin count to send back
+        const userDetails = db.get_user_details(userId);
+        const newCoinCount = userDetails ? userDetails.coins : null;
+        res.status(200).json({ success: true, newCoinCount });
+    } else {
+        // Decrement failed - likely because coins were already 0
+        if (process.env.NODE_ENV === 'development') {
+            console.log(
+                `API (/penalty): Failed to apply penalty to user ${userId} (likely coins already 0).`
+            ); // Updated log message
         }
-    } catch (error) {
-        console.error(`API Error in /penalty for user ${userId}:`, error); // Updated log message
-        res.status(500).json({
+        // Decrement failed, assume coins are 0.
+        const currentCoinCount = 0;
+        // Send 400 Bad Request
+        res.status(400).json({
             success: false,
-            message: 'An unexpected error occurred while applying penalty.',
+            message: 'Cannot apply penalty, coins already zero.',
+            currentCoinCount,
         });
-    }
+    
+        } 
 });
 
 /**
@@ -310,65 +234,24 @@ router.post('/api/complete', requireLogin, (req, res) => {
     const userId = req.session.user.id;
     const { text_id } = req.body; // Only need text_id now
 
-    // Basic validation
-    if (text_id === undefined) {
+
+    
+    // Call the DB function to increment the texts practiced count
+    const success = db.increment_texts_practiced(userId);
+
+    if (success) {
+        res.status(200).json({ success: true });
+    } else {
         console.error(
-            `Practice complete failed: Missing text_id. Body:`,
-            req.body,
-            `User: ${userId}`
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Missing required text_id.' });
-    }
-
-    // Type validation
-    const textIdNum = parseInt(text_id, 10);
-    if (Number.isNaN(textIdNum)) {
-        console.error(
-            `Practice complete failed: Invalid text_id. Body:`,
-            req.body,
-            `User: ${userId}`
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Invalid text_id provided.' });
-    }
-
-    try {
-        // Call the DB function to increment the texts practiced count
-        const success = db.increment_texts_practiced(userId);
-
-        if (success) {
-            if (process.env.NODE_ENV === 'development') {
-                console.log(
-                    `Practice complete recorded (texts_practiced incremented) for User ${userId}, Text ${textIdNum}.`
-                );
-            }
-            // Optionally: Reset progress for this text upon completion?
-            // db.save_progress(userId, textIdNum, 0); // Uncomment to reset progress
-
-            res.status(200).json({ success: true });
-        } else {
-            console.error(
-                `Practice complete DB error: Failed to increment texts_practiced for User ${userId}, Text ${textIdNum}`
-            );
-            res.status(500).json({
-                success: false,
-                message: 'Database error incrementing texts practiced count.',
-            });
-        }
-    } catch (error) {
-        console.error(
-            `Unexpected error recording practice completion for User ${userId}, Text ${textIdNum}:`,
-            error
+            `Practice complete DB error: Failed to increment texts_practiced for User ${userId}, Text ${textIdNum}`
         );
         res.status(500).json({
             success: false,
-            message: 'Server error recording completion.',
-        });
-    }
-});
+            message: 'Database error incrementing texts practiced count.',
+            });
+        }
+    } 
+);
 
 // --- Export Router ---
 module.exports = router;

@@ -30,24 +30,6 @@ if (!genAI) {
         'GEMINI_API_KEY not found in .env file. AI summarization feature will be disabled.'
     );
 }
-// --- Helper Functions ---
-
-// buildRedirectUrl function moved to utils/urlUtils.js
-
-/**
- * Cleans text extracted from PDFs or submitted via textarea.
- * Handles common accent issues from pdftotext and normalizes Unicode.
-
-// processPdfUpload function removed, now imported from utils/textProcessing.js
-
-// --- Multer Configuration for PDF Uploads ---
-// Configure where and how uploaded files are stored
-// const storage = multer.memoryStorage(); // Define storage inline below
-// Removed definition from here, moved below
-
-// --- Text Management Routes ---
-
-// Profile routes moved to profileController.js
 
 /**
  * Route: GET /texts
@@ -55,47 +37,36 @@ if (!genAI) {
  * Middleware: Requires the user to be logged in (`requireLogin`).
  */
 router.get('/texts', requireLogin, (req, res) => {
-    try {
-        const userId = req.session.user.id;
-        // Get current category ID from query param, default to null (root)
-        // Ensure it's either null or a valid integer
-        let currentCategoryId = req.query.category_id
-            ? parseInt(req.query.category_id, 10) // Already has radix 10
-            : null;
-        if (Number.isNaN(currentCategoryId)) {
-            currentCategoryId = null; // Default to root if parsing fails
-        }
+    
+    const userId = req.session.user.id;
+    // Get current category ID from query param, default to null (root)
+    // Ensure it's either null or a valid integer
+    let currentCategoryId = req.query.category_id
+        ? parseInt(req.query.category_id, 10) // Already has radix 10
+        : null;
 
-        // Fetch categories within the current category (subfolders)
-        const categories = db.get_categories(userId, currentCategoryId);
+    // Fetch categories within the current category (subfolders)
+    const categories = db.get_categories(userId, currentCategoryId);
 
-        // Fetch texts within the current category
-        const texts = db.get_texts(userId, currentCategoryId);
+    // Fetch texts within the current category
+    const texts = db.get_texts(userId, currentCategoryId);
 
-        // TODO: Fetch breadcrumbs if currentCategoryId is not null (requires recursive DB query or logic)
-        const breadcrumbs = []; // Placeholder for now
+    // TODO: Fetch breadcrumbs if currentCategoryId is not null (requires recursive DB query or logic)
+    const breadcrumbs = []; // Placeholder for now
 
-        // Fetch all categories flat list for the "Move" dropdown
-        const allCategoriesFlat = db.get_all_categories_flat(userId);
+    // Fetch all categories flat list for the "Move" dropdown
+    const allCategoriesFlat = db.get_all_categories_flat(userId);
 
-        if (process.env.NODE_ENV === 'development')
-            console.log(
-                `Fetching texts page for user ID: ${userId}, Category ID: ${currentCategoryId}, Texts: ${texts.length}, Categories: ${categories.length}, All Categories: ${allCategoriesFlat.length}`
-            );
+    res.render('texts', {
+        user: req.session.user,
+        texts,
+        categories,
+        currentCategoryId, // Pass the current category ID to the view
+        breadcrumbs, // Pass breadcrumbs
+        message: req.query.message || null,
+        allCategoriesFlat, // Pass the flat list for the move dropdown
+    });
 
-        res.render('texts', {
-            user: req.session.user,
-            texts,
-            categories,
-            currentCategoryId, // Pass the current category ID to the view
-            breadcrumbs, // Pass breadcrumbs
-            message: req.query.message || null,
-            allCategoriesFlat, // Pass the flat list for the move dropdown
-        });
-    } catch (error) {
-        console.error('Error fetching texts page:', error);
-        res.status(500).send('Error loading texts.');
-    }
 });
 
 /**
@@ -105,51 +76,29 @@ router.get('/texts', requireLogin, (req, res) => {
  */
 router.get('/add_text', requireLogin, (req, res) => {
     const userId = req.session.user.id; // Moved outside try block
-    try {
-        // Fetch all categories for the dropdown
-        const categories = db.get_all_categories_flat(userId);
-        if (process.env.NODE_ENV === 'development')
-            console.log(
-                `Fetching categories for add_text dropdown for user ${userId}: ${categories.length} found.`
-            );
+    
+    // Fetch all categories for the dropdown
+    const categories = db.get_all_categories_flat(userId);
 
-        // Get potential folderId from query parameters to pre-select dropdown
-        const requestedFolderId = req.query.folderId;
-        let selectedFolderId = null;
-        if (requestedFolderId) {
-            const parsedId = parseInt(requestedFolderId, 10);
-            if (!Number.isNaN(parsedId)) {
-                selectedFolderId = parsedId;
-                if (process.env.NODE_ENV === 'development')
-                    console.log(`Pre-selecting folder ID: ${selectedFolderId}`);
-            }
+    // Get potential folderId from query parameters to pre-select dropdown
+    const requestedFolderId = req.query.folderId;
+    let selectedFolderId = null;
+    if (requestedFolderId) {
+        const parsedId = parseInt(requestedFolderId, 10);
+        if (!Number.isNaN(parsedId)) {
+            selectedFolderId = parsedId;
         }
-
-        // Render the 'add_text.ejs' view
-        res.render('add_text', {
-            user: req.session.user, // Pass user data
-            error: null, // No error initially
-            title: '', // Empty title for new text
-            content: '', // Empty content for new text
-            categories, // Pass the flat list of categories
-            selectedFolderId, // Pass the ID for pre-selection
-        });
-    } catch (error) {
-        console.error(
-            `Error fetching categories for add_text page (User ${userId}):`,
-            error
-        );
-        // Render with an error message, but maybe without categories
-        // Also pass selectedFolderId (likely null here) in case it's needed
-        res.render('add_text', {
-            user: req.session.user,
-            error: 'Could not load folder list.',
-            title: '',
-            content: '',
-            categories: [], // Send empty array
-            selectedFolderId: null, // Explicitly null in error case
-        });
     }
+
+    // Render the 'add_text.ejs' view
+    res.render('add_text', {
+        user: req.session.user, // Pass user data
+        error: null, // No error initially
+        title: '', // Empty title for new text
+        content: '', // Empty content for new text
+        categories, // Pass the flat list of categories
+        selectedFolderId, // Pass the ID for pre-selection
+    });
 });
 
 /**
@@ -160,7 +109,6 @@ router.get('/add_text', requireLogin, (req, res) => {
  *   - `upload.single('pdfFile')`: Processes a potential single file upload with the field name 'pdfFile'.
  *                                  Adds `req.file` (if uploaded) and `req.body` (for text fields).
  */
-
 // Define file filter here, just before it's used in the route below
 const pdfFileFilter = (req, file, cb) => {
     // Function to control which files are accepted
@@ -341,34 +289,16 @@ router.get(
         // The text object (req.text) is guaranteed to exist and belong to the user
         // due to the requireOwnership middleware succeeding.
         const userId = req.session.user.id;
-        try {
-            // Fetch all categories for the dropdown
-            const categories = db.get_all_categories_flat(userId);
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Fetching categories for edit_text dropdown for user ${userId}: ${categories.length} found.`
-                );
+        
+        // Fetch all categories for the dropdown
+        const categories = db.get_all_categories_flat(userId);
 
-            res.render('edit_text', {
-                user: req.session.user, // Pass user data
-                text: req.text, // Pass the text object to pre-fill the form
-                categories, // Pass the flat list of categories
-                error: null, // No error initially
-            });
-        } catch (error) {
-            console.error(
-                `Error fetching categories for edit_text page (User ${userId}, Text ${req.params.text_id}):`,
-                error
-            );
-            // Render with an error message, but still show the text data
-            res.render('edit_text', {
-                user: req.session.user,
-                text: req.text, // Still pass the text data
-                categories: [], // Send empty array for categories
-                error: 'Could not load folder list.',
-            });
-        }
-        // Error handling (text not found, not owned) is done within requireOwnership middleware
+        res.render('edit_text', {
+            user: req.session.user, // Pass user data
+            text: req.text, // Pass the text object to pre-fill the form
+            categories, // Pass the flat list of categories
+            error: null, // No error initially
+        });
     }
 );
 
@@ -396,114 +326,31 @@ router.post(
         let targetCategoryId = null; // Default to root
         if (category_id && category_id !== 'root') {
             const parsedId = parseInt(category_id, 10); // Already has radix 10
-            if (!Number.isNaN(parsedId)) {
-                targetCategoryId = parsedId;
-            } else {
-                console.warn(
-                    `Invalid category_id received in POST /edit_text: ${category_id}`
-                );
-                // Default to root if parsing fails
-            }
-        }
-
-        // Prepare arguments for re-rendering the form in case of errors
-        const renderArgs = {
-            user: req.session.user,
-            // Pass a temporary text object with the submitted data
-            text: {
-                id: textId,
-                title,
-                content,
-                category_id: targetCategoryId,
-            }, // Include category_id
-            categories: [], // Need to re-fetch categories on error render
-            error: null,
-        };
-
-        // --- Input Validation ---
-        if (!title || !content) {
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Edit failed for text ID ${textId}: Title or content empty.`
-                );
-            renderArgs.error = 'Title and content cannot be empty.';
-            // Re-fetch categories before rendering error
-            try {
-                renderArgs.categories = db.get_all_categories_flat(userId);
-            } catch (fetchErr) {
-                console.error(
-                    'Error re-fetching categories for error render:',
-                    fetchErr
-                );
-                renderArgs.categories = [];
-            }
-            return res.render('edit_text', renderArgs);
+            if (!Number.isNaN(parsedId))
+                targetCategoryId = parsedId;  
         }
 
         // --- Update Database ---
-        try {
-            // Clean the content before saving
-            const cleanedContent = cleanupText(content);
-            // Attempt to update the text in the database, now including category_id
-            const success = db.update_text(
-                textId,
-                title,
-                cleanedContent,
-                targetCategoryId
-            );
-            if (success) {
-                // Success: Redirect to the folder where the text now resides
-                if (process.env.NODE_ENV === 'development')
-                    console.log(
-                        `Text updated: ID ${textId}, Title: ${title}, User ID: ${userId}, Category: ${targetCategoryId}, Final Length: ${cleanedContent.length}`
-                    );
-                let redirectUrl = '/texts?message=Text updated successfully!';
-                if (targetCategoryId) {
-                    redirectUrl += `&category_id=${targetCategoryId}`;
-                }
-                res.redirect(redirectUrl);
-            } else {
-                // Database update failed (e.g., text deleted between check and update)
-                console.error(
-                    `Failed to update text ID ${textId} for user ID ${userId}, Category: ${targetCategoryId}`
-                );
-                renderArgs.error = 'Failed to update text. Please try again.';
-                // Re-fetch categories before rendering error
-                try {
-                    renderArgs.categories = db.get_all_categories_flat(userId);
-                } catch (fetchErr) {
-                    console.error(
-                        'Error re-fetching categories for error render:',
-                        fetchErr
-                    );
-                    renderArgs.categories = [];
-                }
-                res.render('edit_text', renderArgs);
+        
+        // Clean the content before saving
+        const cleanedContent = cleanupText(content);
+        // Attempt to update the text in the database, now including category_id
+        const success = db.update_text(
+            textId,
+            title,
+            cleanedContent,
+            targetCategoryId
+        );
+        if (success) {
+            // Success: Redirect to the folder where the text now resides
+            let redirectUrl = '/texts?message=Text updated successfully!';
+            if (targetCategoryId) {
+                redirectUrl += `&category_id=${targetCategoryId}`;
             }
-        } catch (error) {
-            // Catch unexpected errors during database operation
-            console.error(
-                `Error updating text ID ${textId} for user ID ${userId}, Category: ${targetCategoryId}:`,
-                error
-            );
-            renderArgs.error =
-                'An unexpected error occurred while updating the text.';
-            // Re-fetch categories before rendering error
-            try {
-                renderArgs.categories = db.get_all_categories_flat(userId);
-            } catch (fetchErr) {
-                console.error(
-                    'Error re-fetching categories for error render:',
-                    fetchErr
-                );
-                renderArgs.categories = [];
-            }
-            res.render('edit_text', renderArgs);
-        }
+            res.redirect(redirectUrl);
+        }   
     }
 );
-
-// --- Summarization Route ---
 
 /**
  * Route: POST /texts/summarize/:id
@@ -652,67 +499,24 @@ router.post(
         // --- Delete from Database ---
         // Define parentCategoryId outside the try block to ensure it's available in catch
         let parentCategoryId = null;
-        try {
-            // Get the parent category ID *before* deleting, for redirection
-            parentCategoryId = req.text ? req.text.category_id : null;
-            // Log the category ID retrieved from req.text within the handler
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Delete handler: Retrieved parentCategoryId ${parentCategoryId} from req.text for text ID ${textId}`
-                );
+        
+        // Get the parent category ID *before* deleting, for redirection
+        parentCategoryId = req.text ? req.text.category_id : null;
+        
 
-            // Attempt to delete the text
-            const success = db.delete_text(textId);
-            if (success) {
-                // Success: Redirect back to the folder
-                if (process.env.NODE_ENV === 'development')
-                    console.log(
-                        `Text deleted: ID ${textId}, User ID: ${userId}. Redirecting with category_id: ${parentCategoryId}`
-                    );
-                res.redirect(
-                    buildRedirectUrl('/texts', {
-                        message: 'Text deleted successfully!',
-                        category_id: parentCategoryId,
-                    })
-                );
-            } else {
-                // Deletion failed (e.g., text already deleted)
-                console.warn(
-                    `Failed to delete text ID ${textId} for user ID ${userId} (already deleted or DB issue?). Redirecting with category_id: ${parentCategoryId}`
-                );
-                res.redirect(
-                    buildRedirectUrl('/texts', {
-                        message:
-                            'Could not delete text. It might have already been removed.',
-                        category_id: parentCategoryId,
-                    })
-                );
-            }
-        } catch (error) {
-            // Catch unexpected errors during database operation
-            console.error(
-                `Error deleting text ID ${textId} for user ID ${userId}:`,
-                error
-            );
-            // Use the fetched parentCategoryId for redirection even on error
-            if (process.env.NODE_ENV === 'development')
-                console.log(
-                    `Error occurred during deletion for text ID ${textId}. Redirecting with category_id: ${parentCategoryId}`
-                );
+        // Attempt to delete the text
+        const success = db.delete_text(textId);
+        if (success) {
+            // Success: Redirect back to the folder
             res.redirect(
                 buildRedirectUrl('/texts', {
-                    message: 'An error occurred while deleting the text.',
+                    message: 'Text deleted successfully!',
                     category_id: parentCategoryId,
                 })
             );
-        }
+        } 
     }
 );
-
-// --- Practice routes moved to controllers/practiceController.js ---
-// --- Text order route moved to controllers/practiceController.js (or could be textController?) ---
-// Let's keep /update_text_order here for now as it relates to the /texts view listing.
-// Re-adding /update_text_order route here:
 
 /**
  * Route: POST /update_text_order
@@ -724,49 +528,16 @@ router.post('/update_text_order', requireLogin, (req, res) => {
     const { order } = req.body; // Array of text IDs in the new order
     const userId = req.session.user.id;
 
-    // Basic validation
-    if (!Array.isArray(order)) {
-        console.error(
-            `Update text order failed: 'order' is not an array. User ID: ${userId}, Body:`,
-            req.body
-        );
-        return res
-            .status(400)
-            .json({ success: false, message: 'Invalid data format.' });
-    }
-
-    try {
-        // Call the database function to update the order
-        const success = db.update_text_order(userId, order);
-        if (success) {
-            if (process.env.NODE_ENV === 'development')
-                console.log(`Text order updated for user ID: ${userId}`);
-            res.status(200).json({
-                success: true,
-                message: 'Order updated successfully.',
-            });
-        } else {
-            console.error(`Update text order DB error for user ID: ${userId}`);
-            res.status(500).json({
-                success: false,
-                message: 'Database error updating order.',
-            });
-        }
-    } catch (error) {
-        console.error(
-            `Unexpected error updating text order for user ID: ${userId}:`,
-            error
-        );
-        res.status(500).json({
-            success: false,
-            message: 'Server error updating order.',
+    // Call the database function to update the order
+    const success = db.update_text_order(userId, order);
+    if (success) {
+        res.status(200).json({
+            success: true,
+            message: 'Order updated successfully.',
         });
-    }
+    } 
 });
 
-// --- Category routes moved to controllers/categoryController.js ---
-
-// --- Route for moving text removed --- (This comment was already here)
 
 // --- Export Router ---
 // Make the router object available for mounting in server.js

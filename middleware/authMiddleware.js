@@ -16,11 +16,6 @@ function requireLogin(req, res, next) {
         return next();
     }
 
-    // User is not authenticated
-    if (process.env.NODE_ENV === 'development') {
-        console.log('Access denied: User not logged in.');
-    }
-
     // Check if the client accepts JSON
     if (req.accepts('json')) {
         // Send JSON error for API requests
@@ -43,84 +38,44 @@ function requireOwnership(req, res, next) {
     // Use req.params.id if available (for summarize route), fallback to text_id
     const textId = req.params.id || req.params.text_id;
     const userId = req.session.user ? req.session.user.id : null;
+    const text = db.get_text(textId);
 
-    // Should already be caught by requireLogin, but good for defense
-    if (!userId) {
+    if (!text) {
         if (process.env.NODE_ENV === 'development') {
             console.log(
-                `Ownership check failed: No user ID in session for text ID ${textId}`
+                `Ownership check failed: Text not found for ID ${textId}`
             );
         }
-        // Check if the client accepts JSON
         if (req.accepts('json')) {
-            return res
-                .status(401)
-                .json({ message: 'Authentication required. Please log in.' });
+            return res.status(404).json({ message: 'Text not found.' });
         }
-        return res.redirect('/login?message=Please log in');
+        // Redirect browser requests
+        return res.status(404).redirect('/profile?message=Text not found');
     }
 
-    try {
-        const text = db.get_text(textId);
-
-        if (!text) {
-            if (process.env.NODE_ENV === 'development') {
-                console.log(
-                    `Ownership check failed: Text not found for ID ${textId}`
-                );
-            }
-            if (req.accepts('json')) {
-                return res.status(404).json({ message: 'Text not found.' });
-            }
-            // Redirect browser requests
-            return res.status(404).redirect('/profile?message=Text not found');
-        }
-
-        if (text.user_id !== userId) {
-            if (process.env.NODE_ENV === 'development') {
-                console.log(
-                    `Ownership check failed: User ID ${userId} does not own text ID ${textId} (Owner: ${text.user_id})`
-                );
-            }
-            if (req.accepts('json')) {
-                return res.status(403).json({
-                    message: 'Permission denied. You do not own this text.',
-                });
-            }
-            // Redirect browser requests
-            return res
-                .status(403)
-                .redirect(
-                    '/profile?message=You do not have permission to access this text'
-                );
-        }
-
-        // Attach text to request object for convenience in subsequent handlers
-        req.text = text;
-        // Log the category_id found in the middleware
-        if (process.env.NODE_ENV === 'development')
+    if (text.user_id !== userId) {
+        if (process.env.NODE_ENV === 'development') {
             console.log(
-                `Ownership check passed: User ID ${userId} owns text ID ${textId}. Text category_id: ${text?.category_id}`
+                `Ownership check failed: User ID ${userId} does not own text ID ${textId} (Owner: ${text.user_id})`
             );
-        next(); // User owns the text, proceed
-    } catch (error) {
-        console.error(
-            `Error during ownership check for text ID ${textId}:`,
-            error
-        );
+        }
         if (req.accepts('json')) {
-            return res.status(500).json({
-                message:
-                    'An internal error occurred while verifying text ownership.',
+            return res.status(403).json({
+                message: 'Permission denied. You do not own this text.',
             });
         }
         // Redirect browser requests
         return res
-            .status(500)
+            .status(403)
             .redirect(
-                '/profile?message=An error occurred while verifying text ownership'
+                '/profile?message=You do not have permission to access this text'
             );
     }
+
+    // Attach text to request object for convenience in subsequent handlers
+    req.text = text;
+    
+    next(); // User owns the text, proceed
 }
 
 /**
@@ -147,29 +102,10 @@ function redirectIfLoggedIn(req, res, next) {
  */
 function loadUserData(req, res, next) {
     if (req.session && req.session.user && req.session.user.id) {
-        try {
-            const userDetails = db.get_user_details(req.session.user.id);
-            if (userDetails) {
-                res.locals.currentUser = userDetails; // Attach full user details
-                if (process.env.NODE_ENV === 'development') {
-                    // console.log(`Loaded user data for ${userDetails.username}:`, userDetails); // Optional detailed log
-                }
-            } else {
-                // User ID in session but not found in DB (edge case, maybe deleted?)
-                console.warn(
-                    `User ID ${req.session.user.id} found in session but not in DB.`
-                );
-                // Clear the invalid session user data
-                delete req.session.user;
-                res.locals.currentUser = null;
-            }
-        } catch (error) {
-            console.error(
-                `Error fetching user details for user ID ${req.session.user.id}:`,
-                error
-            );
-            res.locals.currentUser = null; // Ensure it's null on error
-        }
+        const userDetails = db.get_user_details(req.session.user.id);
+        if (userDetails) {
+            res.locals.currentUser = userDetails; // Attach full user details
+        } 
     } else {
         // No user logged in, ensure currentUser is null
         res.locals.currentUser = null;

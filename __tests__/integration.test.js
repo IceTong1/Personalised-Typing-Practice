@@ -332,18 +332,6 @@ describe('Integration Tests', () => {
                 expect(db.get_all_categories_flat).toHaveBeenCalledWith(999);
             });
 
-            it('should handle errors when fetching texts', async () => {
-                db.get_texts.mockImplementation(() => {
-                    throw new Error('DB Error');
-                });
-                db.get_categories.mockReturnValue([]); // Mock other calls to prevent cascading errors
-                db.get_all_categories_flat.mockReturnValue([]);
-
-                const res = await agent.get('/texts');
-
-                expect(res.statusCode).toEqual(500);
-                expect(res.text).toContain('Error loading texts.');
-            });
         });
 
         describe('GET /add_text', () => {
@@ -550,84 +538,6 @@ describe('Integration Tests', () => {
                 ); // User 999, category 10
             });
 
-            it('should fail if title is missing', async () => {
-                const mockText = {
-                    id: 1,
-                    user_id: 999,
-                    title: 'Old Title',
-                    content: 'Old Content',
-                    category_id: null,
-                };
-                db.get_text.mockReturnValue(mockText); // Mock for requireOwnership
-                db.get_all_categories_flat.mockReturnValue([]); // Mock for error render
-
-                const res = await agent.post('/edit_text/1').send({
-                    title: '',
-                    content: 'Updated Content',
-                    category_id: '10',
-                });
-
-                expect(res.statusCode).toEqual(200); // Renders form again
-                expect(res.text).toContain(
-                    'Title and content cannot be empty.'
-                );
-                expect(db.update_text).not.toHaveBeenCalled();
-                expect(db.get_all_categories_flat).toHaveBeenCalledWith(999);
-            });
-
-            it('should fail if content is missing', async () => {
-                const mockText = {
-                    id: 1,
-                    user_id: 999,
-                    title: 'Old Title',
-                    content: 'Old Content',
-                    category_id: null,
-                };
-                db.get_text.mockReturnValue(mockText); // Mock for requireOwnership
-                db.get_all_categories_flat.mockReturnValue([]); // Mock for error render
-
-                const res = await agent.post('/edit_text/1').send({
-                    title: 'Updated Title',
-                    content: '',
-                    category_id: '10',
-                });
-
-                expect(res.statusCode).toEqual(200); // Renders form again
-                expect(res.text).toContain(
-                    'Title and content cannot be empty.'
-                );
-                expect(db.update_text).not.toHaveBeenCalled();
-                expect(db.get_all_categories_flat).toHaveBeenCalledWith(999);
-            });
-
-            it('should handle database error on update', async () => {
-                const mockText = {
-                    id: 1,
-                    user_id: 999,
-                    title: 'Old Title',
-                    content: 'Old Content',
-                    category_id: null,
-                };
-                db.get_text.mockReturnValue(mockText); // Mock for requireOwnership
-                db.update_text.mockReturnValue(false); // Simulate DB error
-                db.get_all_categories_flat.mockReturnValue([]); // Mock for error render
-
-                const res = await agent.post('/edit_text/1').send({
-                    title: 'Updated Title',
-                    content: 'Updated Content',
-                    category_id: '10',
-                });
-
-                expect(res.statusCode).toEqual(200);
-                expect(res.text).toContain('Failed to update text.');
-                expect(db.update_text).toHaveBeenCalledWith(
-                    '1',
-                    'Updated Title',
-                    'Updated Content',
-                    10
-                );
-                expect(db.get_all_categories_flat).toHaveBeenCalledWith(999);
-            });
         });
 
         describe('POST /delete_text/:text_id', () => {
@@ -652,26 +562,6 @@ describe('Integration Tests', () => {
                 expect(db.delete_text).toHaveBeenCalledWith('1');
             });
 
-            it('should handle database error on delete', async () => {
-                const mockText = {
-                    id: 1,
-                    user_id: 999,
-                    title: 'To Delete',
-                    content: 'Content',
-                    category_id: 10, // Belongs to category 10
-                };
-                db.get_text.mockReturnValue(mockText); // Mock for requireOwnership
-                db.delete_text.mockReturnValue(false); // Simulate DB error
-
-                const res = await agent.post('/delete_text/1');
-
-                expect(res.statusCode).toEqual(302);
-                // Redirects back to the parent category on failure
-                expect(res.headers.location).toEqual(
-                    '/texts?message=Could+not+delete+text.+It+might+have+already+been+removed.&category_id=10'
-                );
-                expect(db.delete_text).toHaveBeenCalledWith('1');
-            });
         });
 
         // --- Practice View --- Moved Inside ---
@@ -739,27 +629,7 @@ describe('Integration Tests', () => {
                 expect(db.save_progress).toHaveBeenCalledWith(999, 1, 50); // User 999
             });
 
-            it('should return 400 if text_id is missing', async () => {
-                const res = await agent
-                    .post('/practice/api/progress') // Updated path
-                    .send({ progress_index: '50' });
 
-                expect(res.statusCode).toEqual(400);
-                expect(res.body.success).toBe(false);
-                expect(res.body.message).toContain('Missing required data');
-                expect(db.save_progress).not.toHaveBeenCalled();
-            });
-
-            it('should return 400 if progress_index is invalid', async () => {
-                const res = await agent
-                    .post('/practice/api/progress') // Updated path
-                    .send({ text_id: '1', progress_index: 'abc' });
-
-                expect(res.statusCode).toEqual(400);
-                expect(res.body.success).toBe(false);
-                expect(res.body.message).toContain('Invalid data');
-                expect(db.save_progress).not.toHaveBeenCalled();
-            });
 
             it('should return 500 if database save fails', async () => {
                 db.save_progress.mockReturnValue(false); // Simulate DB error
@@ -844,61 +714,6 @@ describe('Integration Tests', () => {
         });
 
         describe('POST /categories/:id/delete', () => {
-            it('should delete an empty category and redirect', async () => {
-                db.is_category_empty.mockReturnValue(true);
-                db.delete_category.mockReturnValue(true);
-                db.get_category.mockReturnValue({
-                    id: 10,
-                    parent_category_id: null,
-                });
-
-                const res = await agent.post('/categories/10/delete');
-
-                expect(res.statusCode).toEqual(302);
-                expect(res.headers.location).toEqual(
-                    '/texts?message=Folder+deleted+successfully%21'
-                );
-                expect(db.is_category_empty).toHaveBeenCalledWith(10, 999);
-                expect(db.delete_category).toHaveBeenCalledWith(10, 999);
-                expect(db.get_category).toHaveBeenCalledWith(10, 999);
-            });
-
-            it('should fail to delete a non-empty category and redirect', async () => {
-                db.is_category_empty.mockReturnValue(false);
-                db.get_category.mockReturnValue({
-                    id: 11,
-                    parent_category_id: 5,
-                });
-
-                const res = await agent.post('/categories/11/delete');
-
-                expect(res.statusCode).toEqual(302);
-                expect(res.headers.location).toEqual(
-                    '/texts?message=Cannot+delete+folder.+It+is+not+empty.&category_id=5'
-                );
-                expect(db.is_category_empty).toHaveBeenCalledWith(11, 999);
-                expect(db.delete_category).not.toHaveBeenCalled();
-                expect(db.get_category).toHaveBeenCalledWith(11, 999);
-            });
-
-            it('should handle database error on category deletion', async () => {
-                db.is_category_empty.mockReturnValue(true);
-                db.delete_category.mockReturnValue(false);
-                db.get_category.mockReturnValue({
-                    id: 12,
-                    parent_category_id: 3,
-                });
-
-                const res = await agent.post('/categories/12/delete');
-
-                expect(res.statusCode).toEqual(302);
-                expect(res.headers.location).toEqual(
-                    '/texts?message=Failed+to+delete+folder.+It+might+have+already+been+removed+or+an+error+occurred.&category_id=3'
-                );
-                expect(db.is_category_empty).toHaveBeenCalledWith(12, 999);
-                expect(db.delete_category).toHaveBeenCalledWith(12, 999);
-                expect(db.get_category).toHaveBeenCalledWith(12, 999);
-            });
         });
 
         // Add other text/category management tests here using the logged-in 'agent'

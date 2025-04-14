@@ -10,8 +10,7 @@ const saltRounds = 10; // Cost factor for bcrypt hashing
 const dbPath = path.join(__dirname, 'typing_trainer.db');
 // Create or open the SQLite database file at the specified path
 const db = new Database(dbPath);
-if (process.env.NODE_ENV === 'development')
-    console.log(`Database connected at: ${dbPath}`);
+
 
 // --- Schema Initialization ---
 // Use `exec` for executing multiple SQL statements (or statements without results)
@@ -77,47 +76,6 @@ db.exec(`
         -- No foreign key for item_id yet, as items aren't in their own table
     );
 `);
-
-// --- Schema Migration: Add order_index to texts if it doesn't exist ---
-// This should run after all initial table creations are defined.
-try {
-    // Check if the column already exists
-    const columns = db.pragma('table_info(texts)');
-    const hasOrderIndex = columns.some((col) => col.name === 'order_index');
-
-    if (!hasOrderIndex) {
-        // Add the column if it doesn't exist
-        db.exec(
-            `ALTER TABLE texts ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0;`
-        );
-        if (process.env.NODE_ENV === 'development')
-            console.log(
-                "Successfully added 'order_index' column to 'texts' table."
-            );
-    }
-} catch (err) {
-    // Log error if PRAGMA or ALTER fails, but don't necessarily stop the app
-    console.error("Error checking/adding 'order_index' column:", err);
-}
-
-// --- Schema Migration: Add coins to users if it doesn't exist ---
-try {
-    const userColumns = db.pragma('table_info(users)');
-    const hasCoins = userColumns.some((col) => col.name === 'coins');
-
-    if (!hasCoins) {
-        db.exec(
-            `ALTER TABLE users ADD COLUMN coins INTEGER NOT NULL DEFAULT 0;`
-        );
-        if (process.env.NODE_ENV === 'development')
-            console.log("Successfully added 'coins' column to 'users' table.");
-    }
-} catch (err) {
-    console.error("Error checking/adding 'coins' column:", err);
-}
-
-if (process.env.NODE_ENV === 'development')
-    console.log('Database tables checked/created successfully.');
 
 // --- Database Access Functions (Model Logic) ---
 

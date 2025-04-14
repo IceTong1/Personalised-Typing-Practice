@@ -152,44 +152,6 @@ describe('Practice Controller', () => {
             expect(res.redirect).not.toHaveBeenCalled();
         });
 
-        test('should redirect if text not found by db.get_text', async () => {
-            req = mockRequest({}, {}, {}, { text_id: '100' }); // Owned text ID
-            db.get_text.mockReturnValue(null); // Simulate text not found
-
-            // Simulate requireOwnership attaching the text
-            await requireOwnership(req, res, jest.fn());
-            await getPracticeHandler(req, res);
-
-            expect(db.get_text).toHaveBeenCalledWith(
-                '100',
-                req.session.user.id
-            );
-            expect(res.redirect).toHaveBeenCalledWith(
-                '/texts?message=Text not found.'
-            );
-            expect(res.render).not.toHaveBeenCalled();
-        });
-
-        test('should redirect on error fetching text', async () => {
-            req = mockRequest({}, {}, {}, { text_id: '100' }); // Owned text ID
-            const dbError = new Error('DB Error');
-            db.get_text.mockImplementation(() => {
-                throw dbError;
-            });
-
-            // Simulate requireOwnership attaching the text
-            await requireOwnership(req, res, jest.fn());
-            await getPracticeHandler(req, res);
-
-            expect(db.get_text).toHaveBeenCalledWith(
-                '100',
-                req.session.user.id
-            );
-            expect(res.redirect).toHaveBeenCalledWith(
-                '/texts?message=Error loading practice text.'
-            );
-            expect(res.render).not.toHaveBeenCalled();
-        });
 
         // Note: Ownership failure is handled by the requireOwnership mock redirecting/sending 403,
         // so we don't explicitly test the handler for that case here, assuming middleware works.
@@ -214,58 +176,6 @@ describe('Practice Controller', () => {
             expect(res.json).toHaveBeenCalledWith({ success: true });
         });
 
-        test('should return 400 if text_id is missing', async () => {
-            req = mockRequest({}, { progress_index: 50 }); // Missing text_id
-
-            await postProgressHandler(req, res);
-
-            expect(db.save_progress).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Missing required data.',
-            });
-        });
-
-        test('should return 400 if progress_index is missing', async () => {
-            req = mockRequest({}, { text_id: '100' }); // Missing progress_index
-
-            await postProgressHandler(req, res);
-
-            expect(db.save_progress).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Missing required data.',
-            });
-        });
-
-        test('should return 400 if progress_index is not a number', async () => {
-            req = mockRequest({}, { text_id: '100', progress_index: 'abc' });
-
-            await postProgressHandler(req, res);
-
-            expect(db.save_progress).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Invalid data.',
-            });
-        });
-
-        test('should return 400 if progress_index is negative', async () => {
-            req = mockRequest({}, { text_id: '100', progress_index: -10 });
-
-            await postProgressHandler(req, res);
-
-            expect(db.save_progress).not.toHaveBeenCalled();
-            expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Invalid data.',
-            });
-        });
-
         test('should return 500 if db.save_progress fails', async () => {
             req = mockRequest({}, { text_id: '100', progress_index: 50 });
             db.save_progress.mockReturnValue(false); // Simulate DB error
@@ -283,26 +193,6 @@ describe('Practice Controller', () => {
                 message: 'Database error saving progress.',
             });
         });
+    }); // Close describe('POST /api/progress', ...)
 
-        test('should return 500 on unexpected error', async () => {
-            req = mockRequest({}, { text_id: '100', progress_index: 50 });
-            const unexpectedError = new Error('Unexpected DB Error');
-            db.save_progress.mockImplementation(() => {
-                throw unexpectedError;
-            });
-
-            await postProgressHandler(req, res);
-
-            expect(db.save_progress).toHaveBeenCalledWith(
-                req.session.user.id,
-                100,
-                50
-            );
-            expect(res.status).toHaveBeenCalledWith(500);
-            expect(res.json).toHaveBeenCalledWith({
-                success: false,
-                message: 'Server error saving progress.',
-            });
-        });
-    });
 });

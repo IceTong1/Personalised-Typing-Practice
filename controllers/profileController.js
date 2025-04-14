@@ -19,7 +19,6 @@ function formatTime(totalSeconds) {
  * Middleware: requireLogin
  */
 router.get('/profile', requireLogin, (req, res) => {
-    try {
         const userId = req.session.user.id;
 
         // Fetch user statistics from the database
@@ -31,20 +30,12 @@ router.get('/profile', requireLogin, (req, res) => {
             totalPracticeTime: formatTime(rawStats.total_practice_time_seconds), // Format the time
             averageAccuracy: rawStats.average_accuracy.toFixed(1), // Format accuracy to one decimal place
         };
-
-        if (process.env.NODE_ENV === 'development') {
-            console.log(`Fetching profile stats for user ID: ${userId}`);
-        }
-
         res.render('profile', {
             user: req.session.user,
             stats,
             message: req.query.message || null,
         });
-    } catch (error) {
-        console.error('Error fetching profile stats:', error);
-        res.status(500).send('Error loading profile.');
-    }
-});
+    } 
+);
 
 module.exports = router;

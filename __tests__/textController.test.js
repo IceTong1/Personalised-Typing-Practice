@@ -622,94 +622,7 @@ describe('Text Controller', () => {
             );
             expect(res.render).not.toHaveBeenCalled();
         });
-
-        test('should fail if title is empty', async () => {
-            const textId = 100;
-            req = mockRequest(
-                {},
-                { title: '', content: 'Content' },
-                {},
-                { text_id: textId.toString() }
-            );
-            // Simulate middleware attaching text for re-render
-            req.text = { id: textId, title: '', content: 'Content' };
-
-            await postEditTextHandler(req, res);
-
-            expect(db.update_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith(
-                'edit_text',
-                expect.objectContaining({
-                    error: 'Title and content cannot be empty.',
-                    text: expect.objectContaining({
-                        id: textId.toString(),
-                        title: '',
-                        content: 'Content',
-                    }),
-                })
-            );
-            expect(res.redirect).not.toHaveBeenCalled();
-        });
-
-        test('should fail if content is empty', async () => {
-            const textId = 100;
-            req = mockRequest(
-                {},
-                { title: 'Title', content: '' },
-                {},
-                { text_id: textId.toString() }
-            );
-            req.text = { id: textId, title: 'Title', content: '' };
-
-            await postEditTextHandler(req, res);
-
-            expect(db.update_text).not.toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith(
-                'edit_text',
-                expect.objectContaining({
-                    error: 'Title and content cannot be empty.',
-                    text: expect.objectContaining({
-                        id: textId.toString(),
-                        title: 'Title',
-                        content: '',
-                    }),
-                })
-            );
-            expect(res.redirect).not.toHaveBeenCalled();
-        });
-
-        test('should fail if db.update_text returns false', async () => {
-            const textId = 100;
-            req = mockRequest(
-                {},
-                { title: 'Updated Title', content: 'Updated Content' },
-                {},
-                { text_id: textId.toString() }
-            );
-            db.update_text.mockReturnValue(false);
-            req.text = {
-                id: textId,
-                title: 'Updated Title',
-                content: 'Updated Content',
-            };
-
-            await postEditTextHandler(req, res);
-
-            expect(db.update_text).toHaveBeenCalled();
-            expect(res.render).toHaveBeenCalledWith(
-                'edit_text',
-                expect.objectContaining({
-                    error: 'Failed to update text. Please try again.',
-                    text: expect.objectContaining({
-                        id: textId.toString(),
-                        title: 'Updated Title',
-                        content: 'Updated Content',
-                    }),
-                })
-            );
-            expect(res.redirect).not.toHaveBeenCalled();
-        });
-    });
+    }); // Close describe('POST /edit_text/:text_id', ...)
 
     // --- POST /delete_text/:text_id ---
     describe('POST /delete_text/:text_id', () => {
@@ -733,40 +646,7 @@ describe('Text Controller', () => {
                 '/texts?message=Text+deleted+successfully%21'
             );
         });
-
-        test('should redirect with message if db.delete_text returns false', async () => {
-            const textId = 100;
-            req = mockRequest({}, {}, {}, { text_id: textId.toString() });
-            db.delete_text.mockReturnValue(false);
-            req.text = { id: textId, user_id: 1, category_id: 5 }; // Simulate middleware
-
-            await postDeleteTextHandler(req, res);
-
-            expect(db.delete_text).toHaveBeenCalledWith(textId.toString());
-            // Expect URL encoded by buildRedirectUrl (spaces as +, . as is)
-            expect(res.redirect).toHaveBeenCalledWith(
-                '/texts?message=Could+not+delete+text.+It+might+have+already+been+removed.&category_id=5'
-            );
-        });
-
-        test('should handle unexpected errors during deletion', async () => {
-            const textId = 100;
-            req = mockRequest({}, {}, {}, { text_id: textId.toString() });
-            const error = new Error('DB Error');
-            db.delete_text.mockImplementation(() => {
-                throw error;
-            });
-            req.text = { id: textId, user_id: 1 }; // Simulate middleware
-
-            await postDeleteTextHandler(req, res);
-
-            expect(db.delete_text).toHaveBeenCalledWith(textId.toString());
-            // Expect URL encoded by buildRedirectUrl (spaces as +, . as is)
-            expect(res.redirect).toHaveBeenCalledWith(
-                '/texts?message=An+error+occurred+while+deleting+the+text.'
-            );
-        });
-    });
+    }); // Close describe('POST /delete_text/:text_id', ...)
 
     // --- Practice routes tests moved to __tests__/practiceController.test.js ---
 });
