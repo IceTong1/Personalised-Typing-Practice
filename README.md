@@ -1,50 +1,43 @@
-# ₿ BitVibe : Monitoring Crypto Haptique
+# ⌨️ Type and Learn – Apprentissage par la Frappe
 
-**BitVibe** est une application Android innovante conçue pour suivre le cours du Bitcoin de manière sensorielle et non intrusive. Grâce à une synchronisation en temps réel et une gestion double-flux de dispositifs haptiques, BitVibe permet de "ressentir" le marché sans jamais consulter son écran.
-
----
-
-## 💡 Concept & Innovation
-
-L'application transforme les données de marché en stimuli physiques différenciés pour une surveillance passive totale :
-
-* **Poignet Droit (Hausse) :** Déclenche des vibrations lorsque le cours du Bitcoin monte.
-* **Poignet Gauche (Baisse) :** Déclenche des vibrations lorsque le cours du Bitcoin descend.
-
-Cette approche réduit la dépendance visuelle aux graphiques (anti "doom-scrolling") tout en maintenant l'utilisateur connecté aux mouvements majeurs du marché.
+**Type and Learn** est une plateforme web moderne conçue pour transformer l'apprentissage de la dactylographie en une expérience productive et ludique. Le concept est simple : ne perdez plus de temps à recopier des textes aléatoires, apprenez en travaillant sur **vos propres documents**.
 
 ---
 
-## 🛠 Spécifications Techniques
-
-### 📱 Développement Mobile
-* **Langage :** Java
-* **IDE :** Android Studio
-* **Architecture :** Utilisation de services d'arrière-plan (Background Services) pour assurer un monitoring continu et une gestion de la batterie optimisée.
-
-### 📊 Flux de Données (Real-time)
-* **API :** Intégration de l'API **ByBit** pour une synchronisation ultra-précise.
-* **Récupération :** Gestion des flux de données en temps réel pour minimiser la latence entre la variation de prix et le signal physique.
-
-### ⌚ Gestion Hardware & Bluetooth
-* **Connectivité Simultanée :** Implémentation d'un protocole de communication Bluetooth permettant de piloter deux dispositifs haptiques de manière synchrone et indépendante.
-* **Routage Haptique :** Algorithme de séparation des signaux (G/D) basé sur le delta de prix calculé.
-
-### ⚙️ Personnalisation & UI
-* **Gestion des Paliers :** Système de seuils réglables permettant à l'utilisateur de définir la sensibilité (ex: vibration uniquement dès 0.2% de variation).
-* **Patterns de Vibration :** Intensité et durée des pulses configurables via l'interface.
+## 🚀 Concept
+L'application permet aux utilisateurs d'importer leurs propres contenus pour s'entraîner. Que ce soit pour réviser un cours, lire un rapport professionnel ou découvrir un article, vous progressez en dactylographie tout en assimilant vos informations personnelles.
 
 ---
 
-## 🚀 Installation
+## ✨ Fonctionnalités Clés
 
-1.  **Cloner le dépôt :**
-    ```bash
-    git clone [https://github.com/votre-username/BitVibe.git](https://github.com/votre-username/BitVibe.git)
-    ```
-2.  **Configuration API :**
-    * Générez une clé API sur votre compte ByBit.
-    * Renseignez vos identifiants dans les paramètres de l'application.
-3.  **Appairage :**
-    * Activez le Bluetooth sur votre smartphone.
-    * Appairez vos deux dispositifs de vibration (L et R) directement depuis le menu de configuration BitVibe.
+### 📄 Gestion de Documents & Fichiers
+* **Importation PDF :** Convertissez instantanément vos fichiers PDF en exercices de frappe.
+* **Explorateur de Fichiers :** Un système intégré pour organiser vos sessions et retrouver vos documents favoris.
+
+### 🤖 Intelligence Artificielle (Gemini API)
+* **Résumés Automatiques :** L'IA Gemini analyse vos documents longs pour en extraire des résumés concis, optimisant ainsi le temps d'entraînement.
+
+### 🎮 Gamification & UX
+* **Système de Récompenses :** Gagnez des points d'expérience (XP) et débloquez des trophées.
+* **Boutique de Trophées :** Personnalisez votre profil avec les récompenses obtenues lors de vos succès.
+* **Interface Immersive :** Retours sonores dynamiques et animations fluides pour une concentration maximale.
+* **Suivi en Temps Réel :** Visualisez votre vitesse (WPM) et votre précision pendant la frappe.
+
+---
+
+## 🛠️ Stack Technique
+
+* **Frontend :** Express.js 
+* **IA :** Google Gemini API
+* **Traitement PDF :** mutler.js
+* **Style :** Tailwind CSS
+* **Audio :** Web Audio API
+
+---
+
+## ⚙️ Installation
+
+1. **Cloner le projet**
+   ```bash
+   git clone [https://github.com/votre-utilisateur/type-and-learn.git](https://github.com/votre-utilisateur/type-and-learn.git)
